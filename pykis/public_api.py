@@ -18,10 +18,25 @@ from typing import NamedTuple, Optional
 import json
 import requests
 
-
+# request 관련 유틸리티------------------
 def to_namedtuple(name: str, json_data: dict) -> NamedTuple:
     _x = namedtuple(name, json_data.keys())
     return _x(**json_data)
+
+
+def get_base_headers(p: Optional[dict] = None)->dict:
+    base_headers = {
+        "Content-Type": "application/json",
+        "Accept": "text/plain",
+        "charset": "UTF-8",
+    }
+
+    if p is not None:
+        for k, v in p.items():
+            base_headers[k] = v
+
+    return base_headers
+# request 관련 유틸리티------------------
 
 
 class DomainInfo:
@@ -35,6 +50,9 @@ class DomainInfo:
             self.base_url = url
         else:
             raise Exception("invalid domain info")
+
+    def get_url(self, url_path: str):
+        return f"{self.base_url}{url_path}"
 
 
 class AccessToken:
@@ -68,24 +86,14 @@ class Api:
         """
         return
 
-    def get_base_headers(self):
-        base_headers = {
-            "Content-Type": "application/json",
-            "Accept": "text/plain",
-            "charset": "UTF-8",
-            "appkey": self.key["appkey"],
-            "appsecret": self.key["appsecret"]
-        }
-
-        return base_headers
-
     # 인증-----------------
+
     def auth(self):
         """
         토큰 발급.
         """
         url_path = "/oauth2/tokenP"
-        url = f"{self.domain.base_url}{url_path}"
+        url = self.domain.get_url(url_path)
 
         p = {
             "grant_type": "client_credentials",
@@ -93,8 +101,14 @@ class Api:
             "appsecret": self.key["appsecret"]
         }
 
-        resp = requests.post(url, data=json.dumps(
-            p), headers=self.get_base_headers())
+        headers = get_base_headers()
+
+        resp = requests.post(
+            url,
+            data=json.dumps(p),
+            headers=headers
+        )
+
         if resp.status_code != 200:
             raise Exception("Authentication failed")
 
