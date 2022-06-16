@@ -13,10 +13,25 @@
 # limitations under the License.
 
 
+
+class DomainInfo:
+    def __init__(self, kind = None, url = None) -> None:
+        if kind == "real":
+            self.url = "https://openapi.koreainvestment.com:9443"
+        elif kind == "virtual":
+            self.url = "https://openapivts.koreainvestment.com:29443"
+
+        elif kind is None and url is not None:
+            self.url = url
+        else:
+            raise Exception("invalid domain info")
+
+
 class Api:
-    def __init__(self, key_info, account_info = None) -> None:
+    def __init__(self, key_info, domain_info = DomainInfo(kind="real"), account_info = None) -> None:
         """
         key_info: API 사용을 위한 인증키 정보. appkey, appsecret
+        domain_info: domain 정보 (실전/모의/etc)
         account_info: 사용할 계좌 정보. account_code, account_product_code 
         """
         return
@@ -27,6 +42,30 @@ class Api:
         account_info: 
         """
         return
+    
+
+    # 인증-----------------
+    def auth(self):
+        """
+        토큰 발급.
+        """
+        return
+
+
+    def set_hash_key(self, header, param):
+        """
+        header에 hash key 설정.
+        """
+        return
+
+
+    def get_hash_key(self, param):
+        """
+        hash key 값 가져오기.
+        """
+        return
+    # 인증-----------------
+
 
     # 시세 조회------------
     def get_kr_stock_price(self, ticker: str):
