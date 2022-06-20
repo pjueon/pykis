@@ -147,14 +147,56 @@ class Api:
     # 인증-----------------
 
     # 시세 조회------------
-
     def get_kr_stock_price(self, ticker: str):
         """
         국내 주식 현재가 조회
         ticker: 종목코드
         return: 해당 종목 현재가 (단위: 원)
         """
-        return
+        info = self._get_kr_stock_current_price_info(ticker)
+        price = info["stck_prpr"]
+
+        return int(price)
+
+    def _get_kr_stock_current_price_info(self, ticker: str):
+        """
+        국내 주식 현재가 조회
+        ticker: 종목코드
+        return: 해당 종목 현재 시세 정보
+        """
+        url_path = "/uapi/domestic-stock/v1/quotations/inquire-price"
+        url = self.domain.get_url(url_path)
+
+        tr_id = "FHKST01010100"
+
+        params = {
+            'FID_COND_MRKT_DIV_CODE': 'J',
+            'FID_INPUT_ISCD': ticker
+        }
+
+        if self.need_auth():
+            self.auth()
+
+        headers = get_base_headers({
+            "appkey": self.key["appkey"],
+            "appsecret": self.key["appsecret"],
+            "authorization": self.token.value,
+            "tr_id": tr_id
+        })
+
+        resp = requests.get(url, headers=headers, params=params)
+
+        if resp.status_code != 200:
+            raise Exception(
+                f"get_kr_stock_price failed. response code: {resp.status_code}")
+
+        body = to_namedtuple("body", resp.json())
+
+        if body.rt_cd != "0":
+            raise Exception(
+                f"get_kr_stock_price retunrn code error: {body.rt_cd}")
+
+        return body.output
     # 시세 조회------------
 
     # 잔고 조회------------
