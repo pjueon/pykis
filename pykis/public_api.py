@@ -19,12 +19,14 @@ import json
 import requests
 
 # request 관련 유틸리티------------------
+
+
 def to_namedtuple(name: str, json_data: dict) -> NamedTuple:
     _x = namedtuple(name, json_data.keys())
     return _x(**json_data)
 
 
-def get_base_headers(p: Optional[dict] = None)->dict:
+def get_base_headers(p: Optional[dict] = None) -> dict:
     base_headers = {
         "Content-Type": "application/json",
         "Accept": "text/plain",
@@ -60,7 +62,7 @@ class AccessToken:
         r = to_namedtuple("res", resp)
         time_margin = timedelta(minutes=1)
 
-        self.value = str(r.access_token)
+        self.value = f"Bearer {str(r.access_token)}"
         self.valid_until = datetime.now() + timedelta(seconds=int(r.expires_in)) - time_margin
 
     def is_valid(self) -> bool:
@@ -117,17 +119,31 @@ class Api:
     def need_auth(self) -> bool:
         return self.token is None or not self.token.is_valid()
 
-    def set_hash_key(self, header, param):
+    def set_hash_key(self, header: dict, param: dict):
         """
         header에 hash key 설정.
         """
-        return
+        hash_key = self.get_hash_key(param)
+        header["hashkey"] = hash_key
 
-    def get_hash_key(self, param):
+    def get_hash_key(self, param: dict):
         """
         hash key 값 가져오기.
         """
-        return
+        url_path = "/uapi/hashkey"
+        url = self.domain.get_url(url_path)
+
+        headers = get_base_headers({
+            "appkey": self.key["appkey"],
+            "appsecret": self.key["appsecret"]
+        })
+
+        resp = requests.post(url, data=json.dumps(param), headers=headers)
+        if resp.status_code != 200:
+            raise Exception(
+                f"get_has_key failed. response code: {resp.status_code}")
+
+        return to_namedtuple("res", resp.json()).HASH
     # 인증-----------------
 
     # 시세 조회------------
