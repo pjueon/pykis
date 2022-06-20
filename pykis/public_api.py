@@ -117,17 +117,31 @@ class Api:
     def need_auth(self) -> bool:
         return self.token is None or not self.token.is_valid()
 
-    def set_hash_key(self, header, param):
+    def set_hash_key(self, header: dict, param: dict):
         """
         header에 hash key 설정.
         """
-        return
+        hash_key = self.get_hash_key(param)
+        header["hashkey"] = hash_key
 
-    def get_hash_key(self, param):
+
+    def get_hash_key(self, param: dict):
         """
         hash key 값 가져오기.
         """
-        return
+        url_path = "/uapi/hashkey"
+        url = self.domain.get_url(url_path)
+
+        headers = get_base_headers({
+            "appkey": self.key["appkey"],
+            "appsecret": self.key["appsecret"]
+        })
+
+        resp = requests.post(url, data=json.dumps(param), headers=headers)
+        if resp.status_code != 200:
+            raise Exception(f"get_has_key failed. response code: {resp.status_code}")
+
+        return to_namedtuple("res", resp.json()).HASH
     # 인증-----------------
 
     # 시세 조회------------
