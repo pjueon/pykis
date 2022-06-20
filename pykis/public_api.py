@@ -60,7 +60,7 @@ class AccessToken:
         r = to_namedtuple("res", resp)
         time_margin = timedelta(minutes=1)
 
-        self.value = str(r.access_token)
+        self.value = f"Bearer {str(r.access_token)}"
         self.valid_until = datetime.now() + timedelta(seconds=int(r.expires_in)) - time_margin
 
     def is_valid(self) -> bool:
