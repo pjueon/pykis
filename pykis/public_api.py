@@ -19,12 +19,14 @@ import json
 import requests
 
 # request 관련 유틸리티------------------
+
+
 def to_namedtuple(name: str, json_data: dict) -> NamedTuple:
     _x = namedtuple(name, json_data.keys())
     return _x(**json_data)
 
 
-def get_base_headers(p: Optional[dict] = None)->dict:
+def get_base_headers(p: Optional[dict] = None) -> dict:
     base_headers = {
         "Content-Type": "application/json",
         "Accept": "text/plain",
@@ -124,7 +126,6 @@ class Api:
         hash_key = self.get_hash_key(param)
         header["hashkey"] = hash_key
 
-
     def get_hash_key(self, param: dict):
         """
         hash key 값 가져오기.
@@ -139,7 +140,8 @@ class Api:
 
         resp = requests.post(url, data=json.dumps(param), headers=headers)
         if resp.status_code != 200:
-            raise Exception(f"get_has_key failed. response code: {resp.status_code}")
+            raise Exception(
+                f"get_has_key failed. response code: {resp.status_code}")
 
         return to_namedtuple("res", resp.json()).HASH
     # 인증-----------------
