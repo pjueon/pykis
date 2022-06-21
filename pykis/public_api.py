@@ -288,6 +288,59 @@ class Api:
     # 잔고 조회------------
 
     # 매매-----------------
+    def _send_kr_stock_order(self, ticker: str, order_amount: int, price: int, buy: bool) -> Json:
+        """
+        국내 주식 매매(현금)
+        """
+        order_type = "00"  # 00: 지정가, 01: 시장가, ... (추후 옵션화 예정)
+        url_path = "/uapi/domestic-stock/v1/trading/order-cash"
+
+        if buy:
+            tr_id = "TTTC0802U"  # buy
+        else:
+            tr_id = "TTTC0801U"  # sell
+
+        param = {
+            "CANO": self.account.account_code,
+            "ACNT_PRDT_CD": self.account.product_code,
+            'PDNO': ticker,
+            'ORD_DVSN': order_type,
+            'ORD_QTY': str(order_amount),
+            'ORD_UNPR': str(price),
+            'CTAC_TLNO': '',
+            # 'SLL_TYPE': '01',
+            'ALGO_NO': ''
+        }
+
+        url = self.domain.get_url(url_path)
+
+        if self.need_auth():
+            self.auth()
+
+        headers = merge_json([
+            get_base_headers(),
+            self.get_api_key_data(),
+            {
+                "authorization": self.token.value,
+                "tr_id": tr_id
+            }
+        ])
+
+        self.set_hash_key(headers, param)
+
+        resp = requests.post(url, data=json.dumps(param), headers=headers)
+        if resp.status_code != 200:
+            msg = f"_send_kr_stock_order failed. response code: {resp.status_code}"
+            raise RuntimeError(msg)
+
+        body = to_namedtuple("body", resp.json())
+
+        if body.rt_cd != "0":
+            msg = f"error message: {body.msg}, return code: {body.rt_cd}"
+            raise RuntimeError(msg)
+
+        return body.output
+
     def buy_kr_stock(self, ticker: str, order_amount: int, price: int):
         """
         국내 주식 매수(현금)
