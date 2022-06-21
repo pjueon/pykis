@@ -258,7 +258,6 @@ class Api:
         """
         url_path = "/uapi/domestic-stock/v1/trading/inquire-daily-ccld"
         tr_id = "TTTC8908R"
-        url = self.domain.get_url(url_path)
 
         if self.account is None:
             msg = f"계좌가 설정되지 않았습니다. set_account를 통해 계좌 정보를 설정해주세요."
