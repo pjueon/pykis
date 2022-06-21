@@ -26,7 +26,7 @@ Json = Dict
 def merge_json(datas: Iterable[Json]) -> Json:
     """
     여러개의 json 형식 데이터를 하나로 통합하여 반환한다. 
-    동일한 key가 있는 경우 뒤에 있는 원소로 덮으쓴다. 
+    동일한 key가 있는 경우 뒤에 있는 원소로 덮어쓴다. 
     """
     ret = {}
     for data in datas:
@@ -55,6 +55,25 @@ def get_base_headers() -> Json:
 
     return base
 
+
+def send_get_request(url, headers, params) -> Json:
+    """
+    HTTP GET method로 request를 보내고 response에서 body.output을 반환한다. 
+    """
+    resp = requests.get(url, headers=headers, params=params)
+
+    if resp.status_code != 200:
+        msg = f"http response code: {resp.status_code}"
+        raise RuntimeError(msg)
+
+    body = to_namedtuple("body", resp.json())
+
+    if body.rt_cd != "0":
+        msg = f"error message: {body.msg1}, return code: {body.rt_cd}"
+        raise RuntimeError(msg)
+
+    return body.output
+
 # request 관련 유틸리티------------------
 
 
@@ -68,7 +87,7 @@ class DomainInfo:
         elif kind is None and url is not None:
             self.base_url = url
         else:
-            raise Exception("invalid domain info")
+            raise RuntimeError("invalid domain info")
 
     def get_url(self, url_path: str):
         """
@@ -114,7 +133,7 @@ class Api:
         """
         self.account = to_namedtuple("account", account_info)
 
-    def send_get_request(self, url_path, tr_id, params):
+    def _send_get_request(self, url_path, tr_id, params) -> Json:
         """
         HTTP GET method로 request를 보내고 response에서 body.output을 반환한다. 
         """
@@ -132,19 +151,7 @@ class Api:
             }
         ])
 
-        resp = requests.get(url, headers=headers, params=params)
-
-        if resp.status_code != 200:
-            msg = f"http response code: {resp.status_code}"
-            raise RuntimeError(msg)
-
-        body = to_namedtuple("body", resp.json())
-
-        if body.rt_cd != "0":
-            msg = f"return code error: {body.rt_cd}"
-            raise RuntimeError(msg)
-
-        return body.output
+        return send_get_request(url, headers, params)
 
     # 인증-----------------
 
@@ -155,7 +162,7 @@ class Api:
         url_path = "/oauth2/tokenP"
         url = self.domain.get_url(url_path)
 
-        params = merge_json([
+        param = merge_json([
             self.get_api_key_data(),
             {
                 "grant_type": "client_credentials"
@@ -164,11 +171,7 @@ class Api:
 
         headers = get_base_headers()
 
-        resp = requests.post(
-            url,
-            data=json.dumps(params),
-            headers=headers
-        )
+        resp = requests.post(url, data=json.dumps(param), headers=headers)
 
         if resp.status_code != 200:
             raise RuntimeError("Authentication failed")
@@ -181,7 +184,7 @@ class Api:
         """
         return self.token is None or not self.token.is_valid()
 
-    def set_hash_key(self, header: Json, param: Json):
+    def set_hash_key(self, header: Json, param: Json) -> None:
         """
         header에 hash key 설정한다. 
         """
@@ -243,7 +246,7 @@ class Api:
             'FID_INPUT_ISCD': ticker
         }
 
-        return self.send_get_request(url_path, tr_id, params)
+        return self._send_get_request(url_path, tr_id, params)
 
     # 시세 조회------------
 
@@ -255,7 +258,6 @@ class Api:
         """
         url_path = "/uapi/domestic-stock/v1/trading/inquire-daily-ccld"
         tr_id = "TTTC8908R"
-        url = self.domain.get_url(url_path)
 
         if self.account is None:
             msg = f"계좌가 설정되지 않았습니다. set_account를 통해 계좌 정보를 설정해주세요."
@@ -274,7 +276,7 @@ class Api:
             "OVRS_ICLD_YN": "N"
         }
 
-        output = self.send_get_request(url_path, tr_id, params)
+        output = self._send_get_request(url_path, tr_id, params)
         return int(output["ord_psbl_cash"])
 
     def get_kr_stock_balance(self):
