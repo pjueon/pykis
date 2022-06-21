@@ -87,7 +87,7 @@ class DomainInfo:
         elif kind is None and url is not None:
             self.base_url = url
         else:
-            raise Exception("invalid domain info")
+            raise RuntimeError("invalid domain info")
 
     def get_url(self, url_path: str):
         """
