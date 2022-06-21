@@ -26,7 +26,7 @@ Json = Dict
 def merge_json(datas: Iterable[Json]) -> Json:
     """
     여러개의 json 형식 데이터를 하나로 통합하여 반환한다. 
-    동일한 key가 있는 경우 뒤에 있는 원소로 덮으쓴다. 
+    동일한 key가 있는 경우 뒤에 있는 원소로 덮어쓴다. 
     """
     ret = {}
     for data in datas:
