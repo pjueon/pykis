@@ -184,7 +184,7 @@ class Api:
         """
         return self.token is None or not self.token.is_valid()
 
-    def set_hash_key(self, header: Json, param: Json):
+    def set_hash_key(self, header: Json, param: Json) -> None:
         """
         header에 hash key 설정한다. 
         """
