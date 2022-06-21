@@ -114,6 +114,38 @@ class Api:
         """
         self.account = to_namedtuple("account", account_info)
 
+    def send_get_request(self, url_path, tr_id, params):
+        """
+        HTTP GET method로 request를 보내고 response에서 body.output을 반환한다. 
+        """
+        url = self.domain.get_url(url_path)
+
+        if self.need_auth():
+            self.auth()
+
+        headers = merge_json([
+            get_base_headers(),
+            self.get_api_key_data(),
+            {
+                "authorization": self.token.value,
+                "tr_id": tr_id
+            }
+        ])
+
+        resp = requests.get(url, headers=headers, params=params)
+
+        if resp.status_code != 200:
+            msg = f"http response code: {resp.status_code}"
+            raise RuntimeError(msg)
+
+        body = to_namedtuple("body", resp.json())
+
+        if body.rt_cd != "0":
+            msg = f"return code error: {body.rt_cd}"
+            raise RuntimeError(msg)
+
+        return body.output
+
     # 인증-----------------
 
     def auth(self) -> None:
@@ -139,7 +171,7 @@ class Api:
         )
 
         if resp.status_code != 200:
-            raise Exception("Authentication failed")
+            raise RuntimeError("Authentication failed")
 
         self.token = AccessToken(resp.json())
 
@@ -167,8 +199,8 @@ class Api:
 
         resp = requests.post(url, data=json.dumps(param), headers=headers)
         if resp.status_code != 200:
-            raise Exception(
-                f"get_has_key failed. response code: {resp.status_code}")
+            msg = f"get_has_key failed. response code: {resp.status_code}"
+            raise RuntimeError(msg)
 
         return to_namedtuple("res", resp.json()).HASH
 
@@ -203,7 +235,6 @@ class Api:
         return: 해당 종목 현재 시세 정보
         """
         url_path = "/uapi/domestic-stock/v1/quotations/inquire-price"
-        url = self.domain.get_url(url_path)
 
         tr_id = "FHKST01010100"
 
@@ -212,31 +243,8 @@ class Api:
             'FID_INPUT_ISCD': ticker
         }
 
-        if self.need_auth():
-            self.auth()
+        return self.send_get_request(url_path, tr_id, params)
 
-        headers = merge_json([
-            get_base_headers(),
-            self.get_api_key_data(),
-            {
-                "authorization": self.token.value,
-                "tr_id": tr_id
-            }
-        ])
-
-        resp = requests.get(url, headers=headers, params=params)
-
-        if resp.status_code != 200:
-            msg = f"get_kr_stock_price failed. response code: {resp.status_code}"
-            raise Exception(msg)
-
-        body = to_namedtuple("body", resp.json())
-
-        if body.rt_cd != "0":
-            msg = f"get_kr_stock_price retunrn code error: {body.rt_cd}"
-            raise Exception(msg)
-
-        return body.output
     # 시세 조회------------
 
     # 잔고 조회------------
@@ -266,31 +274,8 @@ class Api:
             "OVRS_ICLD_YN": "N"
         }
 
-        if self.need_auth():
-            self.auth()
-
-        headers = merge_json([
-            get_base_headers(),
-            self.get_api_key_data(),
-            {
-                "authorization": self.token.value,
-                "tr_id": tr_id
-            }
-        ])
-
-        resp = requests.get(url, headers=headers, params=params)
-        if resp.status_code != 200:
-            msg = f"get_kr_buyable_cash failed. response code: {resp.status_code}"
-            raise Exception(msg)
-
-        body = to_namedtuple("body", resp.json())
-
-        if body.rt_cd != "0":
-            msg = f"get_kr_buyable_cash retunrn code error: {body.rt_cd}"
-            raise Exception(msg)
-
-        body = to_namedtuple("body", resp.json())
-        return int(body.output["ord_psbl_cash"])
+        output = self.send_get_request(url_path, tr_id, params)
+        return int(output["ord_psbl_cash"])
 
     def get_kr_stock_balance(self):
         """
