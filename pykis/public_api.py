@@ -97,19 +97,22 @@ class Api:
         """
         key_info: API 사용을 위한 인증키 정보. appkey, appsecret
         domain_info: domain 정보 (실전/모의/etc)
-        account_info: 사용할 계좌 정보. account_code, account_product_code 
+        account_info: 사용할 계좌 정보. { "account_code" : "[계좌번호 앞 8자리 숫자]", "product_code" : "[계좌번호 뒤 2자리 숫자]" }
         """
         self.key: Json = key_info
         self.domain: DomainInfo = domain_info
         self.token: Optional[AccessToken] = None
-        self.account: Optional[Json] = account_info
+        self.account: Optional[NamedTuple] = None
 
-    def set_account(self, account_info):
+        if account_info is not None:
+            self.set_account(account_info)
+
+    def set_account(self, account_info: Json) -> None:
         """
         사용할 계좌 정보를 설정한다.
-        account_info: 
+        account_info: 사용할 계좌 정보. { "account_code" : "[계좌번호 앞 8자리 숫자]", "product_code" : "[계좌번호 뒤 2자리 숫자]" }
         """
-        return
+        self.account = to_namedtuple("account", account_info)
 
     # 인증-----------------
 
@@ -242,7 +245,52 @@ class Api:
         구매 가능 현금(원화) 조회
         return: 해당 계좌의 구매 가능한 현금(원화)
         """
-        return
+        url_path = "/uapi/domestic-stock/v1/trading/inquire-daily-ccld"
+        tr_id = "TTTC8908R"
+        url = self.domain.get_url(url_path)
+
+        if self.account is None:
+            msg = f"계좌가 설정되지 않았습니다. set_account를 통해 계좌 정보를 설정해주세요."
+            raise RuntimeError(msg)
+
+        stock_code = ""
+        qry_price = 0
+
+        params = {
+            "CANO": self.account.account_code,
+            "ACNT_PRDT_CD": self.account.product_code,
+            "PDNO": stock_code,
+            "ORD_UNPR": str(qry_price),
+            "ORD_DVSN": "02",
+            "CMA_EVLU_AMT_ICLD_YN": "Y",
+            "OVRS_ICLD_YN": "N"
+        }
+
+        if self.need_auth():
+            self.auth()
+
+        headers = merge_json([
+            get_base_headers(),
+            self.get_api_key_data(),
+            {
+                "authorization": self.token.value,
+                "tr_id": tr_id
+            }
+        ])
+
+        resp = requests.get(url, headers=headers, params=params)
+        if resp.status_code != 200:
+            msg = f"get_kr_buyable_cash failed. response code: {resp.status_code}"
+            raise Exception(msg)
+
+        body = to_namedtuple("body", resp.json())
+
+        if body.rt_cd != "0":
+            msg = f"get_kr_buyable_cash retunrn code error: {body.rt_cd}"
+            raise Exception(msg)
+
+        body = to_namedtuple("body", resp.json())
+        return int(body.output["ord_psbl_cash"])
 
     def get_kr_stock_balance(self):
         """
