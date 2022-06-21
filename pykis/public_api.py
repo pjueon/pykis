@@ -55,6 +55,25 @@ def get_base_headers() -> Json:
 
     return base
 
+
+def send_get_request(url, headers, params) -> Json:
+    """
+    HTTP GET method로 request를 보내고 response에서 body.output을 반환한다. 
+    """
+    resp = requests.get(url, headers=headers, params=params)
+
+    if resp.status_code != 200:
+        msg = f"http response code: {resp.status_code}"
+        raise RuntimeError(msg)
+
+    body = to_namedtuple("body", resp.json())
+
+    if body.rt_cd != "0":
+        msg = f"error message: {body.msg1}, return code: {body.rt_cd}"
+        raise RuntimeError(msg)
+
+    return body.output
+
 # request 관련 유틸리티------------------
 
 
@@ -114,7 +133,7 @@ class Api:
         """
         self.account = to_namedtuple("account", account_info)
 
-    def _send_get_request(self, url_path, tr_id, params):
+    def _send_get_request(self, url_path, tr_id, params) -> Json:
         """
         HTTP GET method로 request를 보내고 response에서 body.output을 반환한다. 
         """
@@ -132,19 +151,7 @@ class Api:
             }
         ])
 
-        resp = requests.get(url, headers=headers, params=params)
-
-        if resp.status_code != 200:
-            msg = f"http response code: {resp.status_code}"
-            raise RuntimeError(msg)
-
-        body = to_namedtuple("body", resp.json())
-
-        if body.rt_cd != "0":
-            msg = f"error message: {body.msg1}, return code: {body.rt_cd}"
-            raise RuntimeError(msg)
-
-        return body.output
+        return send_get_request(url, headers, params)
 
     # 인증-----------------
 
