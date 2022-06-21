@@ -114,7 +114,7 @@ class Api:
         """
         self.account = to_namedtuple("account", account_info)
 
-    def send_get_request(self, url_path, tr_id, params):
+    def _send_get_request(self, url_path, tr_id, params):
         """
         HTTP GET method로 request를 보내고 response에서 body.output을 반환한다. 
         """
@@ -243,7 +243,7 @@ class Api:
             'FID_INPUT_ISCD': ticker
         }
 
-        return self.send_get_request(url_path, tr_id, params)
+        return self._send_get_request(url_path, tr_id, params)
 
     # 시세 조회------------
 
@@ -274,7 +274,7 @@ class Api:
             "OVRS_ICLD_YN": "N"
         }
 
-        output = self.send_get_request(url_path, tr_id, params)
+        output = self._send_get_request(url_path, tr_id, params)
         return int(output["ord_psbl_cash"])
 
     def get_kr_stock_balance(self):
