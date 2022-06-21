@@ -162,7 +162,7 @@ class Api:
         url_path = "/oauth2/tokenP"
         url = self.domain.get_url(url_path)
 
-        params = merge_json([
+        param = merge_json([
             self.get_api_key_data(),
             {
                 "grant_type": "client_credentials"
@@ -171,11 +171,7 @@ class Api:
 
         headers = get_base_headers()
 
-        resp = requests.post(
-            url,
-            data=json.dumps(params),
-            headers=headers
-        )
+        resp = requests.post(url, data=json.dumps(param), headers=headers)
 
         if resp.status_code != 200:
             raise RuntimeError("Authentication failed")
