@@ -141,7 +141,7 @@ class Api:
         body = to_namedtuple("body", resp.json())
 
         if body.rt_cd != "0":
-            msg = f"return code error: {body.rt_cd}"
+            msg = f"error message: {body.msg1}, return code: {body.rt_cd}"
             raise RuntimeError(msg)
 
         return body.output
