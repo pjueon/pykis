@@ -14,30 +14,47 @@
 
 from datetime import datetime, timedelta
 from collections import namedtuple
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, Dict, Iterable
 import json
 import requests
+
+Json = Dict
 
 # request 관련 유틸리티------------------
 
 
-def to_namedtuple(name: str, json_data: dict) -> NamedTuple:
+def merge_json(datas: Iterable[Json]) -> Json:
+    """
+    여러개의 json 형식 데이터를 하나로 통합하여 반환한다. 
+    동일한 key가 있는 경우 뒤에 있는 원소로 덮으쓴다. 
+    """
+    ret = {}
+    for data in datas:
+        for key, value in data.items():
+            ret[key] = value
+    return ret
+
+
+def to_namedtuple(name: str, json_data: Json) -> NamedTuple:
+    """
+    json 형식의 데이터를 NamedTuple 타입으로 반환한다.
+    """
     _x = namedtuple(name, json_data.keys())
     return _x(**json_data)
 
 
-def get_base_headers(p: Optional[dict] = None) -> dict:
-    base_headers = {
+def get_base_headers() -> Json:
+    """
+    api에 사용할 header의 기본 base를 반환한다.   
+    """
+    base = {
         "Content-Type": "application/json",
         "Accept": "text/plain",
         "charset": "UTF-8",
     }
 
-    if p is not None:
-        for k, v in p.items():
-            base_headers[k] = v
+    return base
 
-    return base_headers
 # request 관련 유틸리티------------------
 
 
@@ -54,11 +71,14 @@ class DomainInfo:
             raise Exception("invalid domain info")
 
     def get_url(self, url_path: str):
+        """
+        url_path를 입력받아서 전체 url을 반환한다.
+        """
         return f"{self.base_url}{url_path}"
 
 
 class AccessToken:
-    def __init__(self, resp: dict) -> None:
+    def __init__(self, resp: Json) -> None:
         r = to_namedtuple("res", resp)
         time_margin = timedelta(minutes=1)
 
@@ -66,48 +86,52 @@ class AccessToken:
         self.valid_until = datetime.now() + timedelta(seconds=int(r.expires_in)) - time_margin
 
     def is_valid(self) -> bool:
+        """
+        access token이 유효한지 검사한다.
+        """
         return datetime.now() < self.valid_until
 
 
 class Api:
-    def __init__(self, key_info: dict, domain_info=DomainInfo(kind="real"), account_info: Optional[dict] = None) -> None:
+    def __init__(self, key_info: Json, domain_info=DomainInfo(kind="real"), account_info: Optional[Json] = None) -> None:
         """
         key_info: API 사용을 위한 인증키 정보. appkey, appsecret
         domain_info: domain 정보 (실전/모의/etc)
         account_info: 사용할 계좌 정보. account_code, account_product_code 
         """
-        self.key: dict = key_info
+        self.key: Json = key_info
         self.domain: DomainInfo = domain_info
         self.token: Optional[AccessToken] = None
-        self.account: Optional[dict] = account_info
+        self.account: Optional[Json] = account_info
 
     def set_account(self, account_info):
         """
-        사용할 계좌 정보 설정.
+        사용할 계좌 정보를 설정한다.
         account_info: 
         """
         return
 
     # 인증-----------------
 
-    def auth(self):
+    def auth(self) -> None:
         """
-        토큰 발급.
+        access token을 발급한다.
         """
         url_path = "/oauth2/tokenP"
         url = self.domain.get_url(url_path)
 
-        p = {
-            "grant_type": "client_credentials",
-            "appkey": self.key["appkey"],
-            "appsecret": self.key["appsecret"]
-        }
+        params = merge_json([
+            self.get_api_key_data(),
+            {
+                "grant_type": "client_credentials"
+            }
+        ])
 
         headers = get_base_headers()
 
         resp = requests.post(
             url,
-            data=json.dumps(p),
+            data=json.dumps(params),
             headers=headers
         )
 
@@ -117,26 +141,26 @@ class Api:
         self.token = AccessToken(resp.json())
 
     def need_auth(self) -> bool:
+        """
+        authentication이 필요한지 여부를 반환한다. 
+        """
         return self.token is None or not self.token.is_valid()
 
-    def set_hash_key(self, header: dict, param: dict):
+    def set_hash_key(self, header: Json, param: Json):
         """
-        header에 hash key 설정.
+        header에 hash key 설정한다. 
         """
         hash_key = self.get_hash_key(param)
         header["hashkey"] = hash_key
 
-    def get_hash_key(self, param: dict):
+    def get_hash_key(self, param: Json) -> str:
         """
-        hash key 값 가져오기.
+        hash key 값을 가져온다. 
         """
         url_path = "/uapi/hashkey"
         url = self.domain.get_url(url_path)
 
-        headers = get_base_headers({
-            "appkey": self.key["appkey"],
-            "appsecret": self.key["appsecret"]
-        })
+        headers = merge_json([get_base_headers(), self.get_api_key_data()])
 
         resp = requests.post(url, data=json.dumps(param), headers=headers)
         if resp.status_code != 200:
@@ -144,12 +168,23 @@ class Api:
                 f"get_has_key failed. response code: {resp.status_code}")
 
         return to_namedtuple("res", resp.json()).HASH
+
+    def get_api_key_data(self) -> Json:
+        """
+        사용자의 api key 데이터를 반환한다.
+        """
+        key_data = {
+            "appkey": self.key["appkey"],
+            "appsecret": self.key["appsecret"]
+        }
+        return key_data
+
     # 인증-----------------
 
     # 시세 조회------------
-    def get_kr_stock_price(self, ticker: str):
+    def get_kr_stock_price(self, ticker: str) -> int:
         """
-        국내 주식 현재가 조회
+        국내 주식 현재가를 반환한다. 
         ticker: 종목코드
         return: 해당 종목 현재가 (단위: 원)
         """
@@ -158,9 +193,9 @@ class Api:
 
         return int(price)
 
-    def _get_kr_stock_current_price_info(self, ticker: str):
+    def _get_kr_stock_current_price_info(self, ticker: str) -> Json:
         """
-        국내 주식 현재가 조회
+        국내 주식 현재가 시세 정보를 반환한다.
         ticker: 종목코드
         return: 해당 종목 현재 시세 정보
         """
@@ -177,30 +212,32 @@ class Api:
         if self.need_auth():
             self.auth()
 
-        headers = get_base_headers({
-            "appkey": self.key["appkey"],
-            "appsecret": self.key["appsecret"],
-            "authorization": self.token.value,
-            "tr_id": tr_id
-        })
+        headers = merge_json([
+            get_base_headers(),
+            self.get_api_key_data(),
+            {
+                "authorization": self.token.value,
+                "tr_id": tr_id
+            }
+        ])
 
         resp = requests.get(url, headers=headers, params=params)
 
         if resp.status_code != 200:
-            raise Exception(
-                f"get_kr_stock_price failed. response code: {resp.status_code}")
+            msg = f"get_kr_stock_price failed. response code: {resp.status_code}"
+            raise Exception(msg)
 
         body = to_namedtuple("body", resp.json())
 
         if body.rt_cd != "0":
-            raise Exception(
-                f"get_kr_stock_price retunrn code error: {body.rt_cd}")
+            msg = f"get_kr_stock_price retunrn code error: {body.rt_cd}"
+            raise Exception(msg)
 
         return body.output
     # 시세 조회------------
 
     # 잔고 조회------------
-    def get_kr_buyable_cash(self):
+    def get_kr_buyable_cash(self) -> int:
         """
         구매 가능 현금(원화) 조회
         return: 해당 계좌의 구매 가능한 현금(원화)
