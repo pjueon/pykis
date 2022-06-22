@@ -14,7 +14,7 @@
 
 from datetime import datetime, timedelta
 from collections import namedtuple
-from typing import NamedTuple, Optional, Dict, Iterable, Any
+from typing import NamedTuple, Optional, Dict, Iterable, Any, List
 import json
 import requests
 
@@ -29,6 +29,7 @@ class APIResponse:
         self.data: Json = resp.json()
         self.message: str = self._get_message()
         self.return_code: str = self._get_return_code()
+        self.outputs: List[Json] = self._get_outputs()
 
     def is_ok(self) -> bool:
         """
@@ -63,6 +64,17 @@ class APIResponse:
         API에서 성공/실패를 나타내는 return code를 찾아서 반환한다. 없는 경우 "0"(정상)을 반환
         """
         return self.data.get("rt_code", "0")
+
+    def _get_outputs(self) -> List[Json]:
+        """
+        API의 output 값(ex> output, output1, output2)들을 list로 가져온다. 
+        뒤에 붙은 번호 순서대로(output이 있는 경우 제일 앞) 배치한다.
+        """
+        target_keys = ["output", "output1", "output2"]
+        ret = [self.data[target]
+               for target in target_keys if target in self.data]
+
+        return ret
 
 
 def merge_json(datas: Iterable[Json]) -> Json:
@@ -182,7 +194,7 @@ class Api:
 
     def _send_get_request(self, url_path, tr_id, params) -> Json:
         """
-        HTTP GET method로 request를 보내고 response에서 body.output을 반환한다. 
+        HTTP GET method로 request를 보내고 response에서 body.outputs를 반환한다. 
         """
         url = self.domain.get_url(url_path)
 
@@ -199,7 +211,7 @@ class Api:
         ])
 
         r = send_get_request(url, headers, params)
-        return r.data["output"]
+        return r.outputs
 
     # 인증-----------------
 
@@ -294,7 +306,8 @@ class Api:
             'FID_INPUT_ISCD': ticker
         }
 
-        return self._send_get_request(url_path, tr_id, params)
+        outputs = self._send_get_request(url_path, tr_id, params)
+        return outputs[0]
 
     # 시세 조회------------
 
@@ -324,7 +337,8 @@ class Api:
             "OVRS_ICLD_YN": "N"
         }
 
-        output = self._send_get_request(url_path, tr_id, params)
+        outputs = self._send_get_request(url_path, tr_id, params)
+        output = outputs[0]
         return int(output["ord_psbl_cash"])
 
     def get_kr_stock_balance(self):
@@ -380,7 +394,7 @@ class Api:
         body = APIResponse(resp)
         body.raise_if_error()
 
-        return body["output"]
+        return body.outputs[0]
 
     def buy_kr_stock(self, ticker: str, order_amount: int, price: int):
         """
