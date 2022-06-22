@@ -397,22 +397,22 @@ class Api:
 
         return body.outputs[0]
 
-    def buy_kr_stock(self, ticker: str, order_amount: int, price: int):
+    def buy_kr_stock(self, ticker: str, order_amount: int, price: int) -> Json:
         """
         국내 주식 매수(현금)
         ticker: 종목코드
         order_amount: 주문 수량
         price: 주문 가격
         """
-        return
+        return self._send_kr_stock_order(ticker, order_amount, price, True)
 
-    def sell_kr_stock(self, ticker: str, order_amount: int, price: int):
+    def sell_kr_stock(self, ticker: str, order_amount: int, price: int) -> Json:
         """
         국내 주식 매매(현금)
         ticker: 종목코드
         order_amount: 주문 수량
         price: 주문 가격
         """
-        return
+        return self._send_kr_stock_order(ticker, order_amount, price, False)
 
     # 매매-----------------
