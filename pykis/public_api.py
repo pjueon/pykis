@@ -14,13 +14,55 @@
 
 from datetime import datetime, timedelta
 from collections import namedtuple
-from typing import NamedTuple, Optional, Dict, Iterable
+from typing import NamedTuple, Optional, Dict, Iterable, Any
 import json
 import requests
 
-Json = Dict
+Json = Dict[str, Any]
 
 # request 관련 유틸리티------------------
+
+
+class APIResponse:
+    def __init__(self, resp: requests.Response) -> None:
+        self.http_code: int = resp.status_code
+        self.data: Json = resp.json()
+        self.message: str = self._get_message()
+        self.return_code: str = self._get_return_code()
+
+    def is_ok(self) -> bool:
+        """
+        아무런 오류가 없는 경우 True, 오류가 있는 경우 False를 반환한다. 
+        """
+        return self.http_code == 200 and self.return_code == "0"
+
+    def raise_if_error(self) -> None:
+        """
+        오류가 난 경우 예외를 던진다. 
+        """
+        if self.http_code != 200:
+            raise RuntimeError(f"http error. code: {self.http_code}")
+
+        if self.return_code != "0":
+            raise RuntimeError(
+                f"return code: {self.return_code}. msg: {self.message}")
+
+    def _get_message(self) -> str:
+        """
+        API의 response에서 응답 메시지를 찾아서 반환한다. 없는 경우 빈 문자열을 반환.
+        """
+        if "msg" in self.data:
+            return self.data["msg"]
+        elif "msg1" in self.data:
+            return self.data["msg1"]
+        else:
+            return ""
+
+    def _get_return_code(self) -> str:
+        """
+        API에서 성공/실패를 나타내는 return code를 찾아서 반환한다. 없는 경우 "0"(정상)을 반환
+        """
+        return self.data.get("rt_code", "0")
 
 
 def merge_json(datas: Iterable[Json]) -> Json:
@@ -56,59 +98,64 @@ def get_base_headers() -> Json:
     return base
 
 
-def send_get_request(url, headers, params) -> Json:
+def send_get_request(url, headers, params) -> APIResponse:
     """
-    HTTP GET method로 request를 보내고 response에서 body.output을 반환한다. 
+    HTTP GET method로 request를 보내고 APIResponse 객체를 반환한다. 
     """
     resp = requests.get(url, headers=headers, params=params)
+    body = APIResponse(resp)
+    body.raise_if_error()
 
-    if resp.status_code != 200:
-        msg = f"http response code: {resp.status_code}"
-        raise RuntimeError(msg)
+    return body
 
-    body = to_namedtuple("body", resp.json())
-
-    if body.rt_cd != "0":
-        msg = f"error message: {body.msg1}, return code: {body.rt_cd}"
-        raise RuntimeError(msg)
-
-    return body.output
 
 # request 관련 유틸리티------------------
 
 
 class DomainInfo:
     def __init__(self, kind: Optional[str] = None, url: Optional[str] = None) -> None:
-        if kind == "real":
-            self.base_url = "https://openapi.koreainvestment.com:9443"
-        elif kind == "virtual":
-            self.base_url = "https://openapivts.koreainvestment.com:29443"
-
-        elif kind is None and url is not None:
-            self.base_url = url
-        else:
-            raise RuntimeError("invalid domain info")
+        self.base_url = self._get_base_url(kind, url)
 
     def get_url(self, url_path: str):
         """
         url_path를 입력받아서 전체 url을 반환한다.
         """
-        return f"{self.base_url}{url_path}"
+        separator = "" if url_path.startswith("/") else "/"
+        return f"{self.base_url}{separator}{url_path}"
+
+    def _get_base_url(self, kind: Optional[str], input_url: Optional[str]) -> str:
+        """
+        domain 정보를 나타내는 base url 반환한다. 잘못된 입력의 경우 예외를 던진다.
+        """
+        if kind == "real":
+            return "https://openapi.koreainvestment.com:9443"
+        elif kind == "virtual":
+            return "https://openapivts.koreainvestment.com:29443"
+
+        elif kind is None and input_url is not None:
+            return input_url
+        else:
+            raise RuntimeError("invalid domain info")
 
 
 class AccessToken:
-    def __init__(self, resp: Json) -> None:
-        r = to_namedtuple("res", resp)
-        time_margin = timedelta(minutes=1)
-
-        self.value = f"Bearer {str(r.access_token)}"
-        self.valid_until = datetime.now() + timedelta(seconds=int(r.expires_in)) - time_margin
+    def __init__(self, resp: NamedTuple) -> None:
+        self.value: str = f"Bearer {str(resp.access_token)}"
+        self.valid_until: datetime = self._get_valid_until(resp)
 
     def is_valid(self) -> bool:
         """
         access token이 유효한지 검사한다.
         """
         return datetime.now() < self.valid_until
+
+    def _get_valid_until(self, resp: NamedTuple) -> datetime:
+        """
+        현재 시각 기준으로 access token의 유효기한을 반환한다.
+        """
+        time_margin = 60
+        duration = int(resp.expires_in) - time_margin
+        return datetime.now() + timedelta(seconds=duration)
 
 
 class Api:
@@ -151,7 +198,8 @@ class Api:
             }
         ])
 
-        return send_get_request(url, headers, params)
+        r = send_get_request(url, headers, params)
+        return r.data["output"]
 
     # 인증-----------------
 
@@ -172,11 +220,12 @@ class Api:
         headers = get_base_headers()
 
         resp = requests.post(url, data=json.dumps(param), headers=headers)
+        body = APIResponse(resp)
+        body.raise_if_error()
 
-        if resp.status_code != 200:
-            raise RuntimeError("Authentication failed")
+        r = to_namedtuple("body", body.data)
 
-        self.token = AccessToken(resp.json())
+        self.token = AccessToken(r)
 
     def need_auth(self) -> bool:
         """
@@ -201,11 +250,10 @@ class Api:
         headers = merge_json([get_base_headers(), self.get_api_key_data()])
 
         resp = requests.post(url, data=json.dumps(param), headers=headers)
-        if resp.status_code != 200:
-            msg = f"get_has_key failed. response code: {resp.status_code}"
-            raise RuntimeError(msg)
+        body = APIResponse(resp)
+        body.raise_if_error()
 
-        return to_namedtuple("res", resp.json()).HASH
+        return body["HASH"]
 
     def get_api_key_data(self) -> Json:
         """
@@ -329,17 +377,10 @@ class Api:
         self.set_hash_key(headers, param)
 
         resp = requests.post(url, data=json.dumps(param), headers=headers)
-        if resp.status_code != 200:
-            msg = f"_send_kr_stock_order failed. response code: {resp.status_code}"
-            raise RuntimeError(msg)
+        body = APIResponse(resp)
+        body.raise_if_error()
 
-        body = to_namedtuple("body", resp.json())
-
-        if body.rt_cd != "0":
-            msg = f"error message: {body.msg}, return code: {body.rt_cd}"
-            raise RuntimeError(msg)
-
-        return body.output
+        return body["output"]
 
     def buy_kr_stock(self, ticker: str, order_amount: int, price: int):
         """
