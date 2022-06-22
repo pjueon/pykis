@@ -37,14 +37,14 @@ class APIResponse:
         """
         return self.http_code == 200 and self.return_code == "0"
 
-    def raise_if_error(self) -> None:
+    def raise_if_error(self, check_http_error = True, check_return_code = True) -> None:
         """
         오류가 난 경우 예외를 던진다. 
         """
-        if self.http_code != 200:
+        if check_http_error and self.http_code != 200:
             raise RuntimeError(f"http error. code: {self.http_code}")
 
-        if self.return_code != "0":
+        if check_return_code and self.return_code != "0":
             raise RuntimeError(
                 f"return code: {self.return_code}. msg: {self.message}")
 
