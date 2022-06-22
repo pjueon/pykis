@@ -28,25 +28,26 @@ class APIResponse:
         self.http_code: int = resp.status_code
         self.data: Json = resp.json()
         self.message: str = self._get_message()
-        self.return_code: str = self._get_return_code()
+        self.return_code: Optional[str] = self._get_return_code()
         self.outputs: List[Json] = self._get_outputs()
 
     def is_ok(self) -> bool:
         """
         아무런 오류가 없는 경우 True, 오류가 있는 경우 False를 반환한다. 
         """
-        return self.http_code == 200 and self.return_code == "0"
+        return self.http_code == 200 and (self.return_code == "0" or self.return_code is None)
 
-    def raise_if_error(self, check_http_error = True, check_return_code = True) -> None:
+    def raise_if_error(self, check_http_error=True, check_return_code=True) -> None:
         """
         오류가 난 경우 예외를 던진다. 
         """
-        if check_http_error and self.http_code != 200:
-            raise RuntimeError(f"http error. code: {self.http_code}")
+        error_message = f"http response: {self.http_code}, return code: {self.return_code}. msg: {self.message}"
 
-        if check_return_code and self.return_code != "0":
-            raise RuntimeError(
-                f"return code: {self.return_code}. msg: {self.message}")
+        if check_http_error and self.http_code != 200:
+            raise RuntimeError(error_message)
+
+        if check_return_code and self.return_code != "0" and self.return_code is not None:
+            raise RuntimeError(error_message)
 
     def _get_message(self) -> str:
         """
@@ -59,11 +60,11 @@ class APIResponse:
         else:
             return ""
 
-    def _get_return_code(self) -> str:
+    def _get_return_code(self) -> Optional[str]:
         """
-        API에서 성공/실패를 나타내는 return code를 찾아서 반환한다. 없는 경우 "0"(정상)을 반환
+        API에서 성공/실패를 나타내는 return code를 찾아서 반환한다. 없는 경우 None을 반환
         """
-        return self.data.get("rt_code", "0")
+        return self.data.get("rt_cd", None)
 
     def _get_outputs(self) -> List[Json]:
         """
@@ -265,7 +266,7 @@ class Api:
         body = APIResponse(resp)
         body.raise_if_error()
 
-        return body["HASH"]
+        return body.data["HASH"]
 
     def get_api_key_data(self) -> Json:
         """
@@ -413,4 +414,5 @@ class Api:
         price: 주문 가격
         """
         return
+
     # 매매-----------------
