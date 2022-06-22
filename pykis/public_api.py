@@ -14,13 +14,68 @@
 
 from datetime import datetime, timedelta
 from collections import namedtuple
-from typing import NamedTuple, Optional, Dict, Iterable
+from typing import NamedTuple, Optional, Dict, Iterable, Any, List
 import json
 import requests
 
-Json = Dict
+Json = Dict[str, Any]
 
 # request 관련 유틸리티------------------
+
+
+class APIResponse:
+    def __init__(self, resp: requests.Response) -> None:
+        self.http_code: int = resp.status_code
+        self.data: Json = resp.json()
+        self.message: str = self._get_message()
+        self.return_code: Optional[str] = self._get_return_code()
+        self.outputs: List[Json] = self._get_outputs()
+
+    def is_ok(self) -> bool:
+        """
+        아무런 오류가 없는 경우 True, 오류가 있는 경우 False를 반환한다. 
+        """
+        return self.http_code == 200 and (self.return_code == "0" or self.return_code is None)
+
+    def raise_if_error(self, check_http_error=True, check_return_code=True) -> None:
+        """
+        오류가 난 경우 예외를 던진다. 
+        """
+        error_message = f"http response: {self.http_code}, return code: {self.return_code}. msg: {self.message}"
+
+        if check_http_error and self.http_code != 200:
+            raise RuntimeError(error_message)
+
+        if check_return_code and self.return_code != "0" and self.return_code is not None:
+            raise RuntimeError(error_message)
+
+    def _get_message(self) -> str:
+        """
+        API의 response에서 응답 메시지를 찾아서 반환한다. 없는 경우 빈 문자열을 반환.
+        """
+        if "msg" in self.data:
+            return self.data["msg"]
+        elif "msg1" in self.data:
+            return self.data["msg1"]
+        else:
+            return ""
+
+    def _get_return_code(self) -> Optional[str]:
+        """
+        API에서 성공/실패를 나타내는 return code를 찾아서 반환한다. 없는 경우 None을 반환
+        """
+        return self.data.get("rt_cd", None)
+
+    def _get_outputs(self) -> List[Json]:
+        """
+        API의 output 값(ex> output, output1, output2)들을 list로 가져온다. 
+        뒤에 붙은 번호 순서대로(output이 있는 경우 제일 앞) 배치한다.
+        """
+        target_keys = ["output", "output1", "output2"]
+        ret = [self.data[target]
+               for target in target_keys if target in self.data]
+
+        return ret
 
 
 def merge_json(datas: Iterable[Json]) -> Json:
@@ -56,59 +111,64 @@ def get_base_headers() -> Json:
     return base
 
 
-def send_get_request(url, headers, params) -> Json:
+def send_get_request(url, headers, params) -> APIResponse:
     """
-    HTTP GET method로 request를 보내고 response에서 body.output을 반환한다. 
+    HTTP GET method로 request를 보내고 APIResponse 객체를 반환한다. 
     """
     resp = requests.get(url, headers=headers, params=params)
+    body = APIResponse(resp)
+    body.raise_if_error()
 
-    if resp.status_code != 200:
-        msg = f"http response code: {resp.status_code}"
-        raise RuntimeError(msg)
+    return body
 
-    body = to_namedtuple("body", resp.json())
-
-    if body.rt_cd != "0":
-        msg = f"error message: {body.msg1}, return code: {body.rt_cd}"
-        raise RuntimeError(msg)
-
-    return body.output
 
 # request 관련 유틸리티------------------
 
 
 class DomainInfo:
     def __init__(self, kind: Optional[str] = None, url: Optional[str] = None) -> None:
-        if kind == "real":
-            self.base_url = "https://openapi.koreainvestment.com:9443"
-        elif kind == "virtual":
-            self.base_url = "https://openapivts.koreainvestment.com:29443"
-
-        elif kind is None and url is not None:
-            self.base_url = url
-        else:
-            raise RuntimeError("invalid domain info")
+        self.base_url = self._get_base_url(kind, url)
 
     def get_url(self, url_path: str):
         """
         url_path를 입력받아서 전체 url을 반환한다.
         """
-        return f"{self.base_url}{url_path}"
+        separator = "" if url_path.startswith("/") else "/"
+        return f"{self.base_url}{separator}{url_path}"
+
+    def _get_base_url(self, kind: Optional[str], input_url: Optional[str]) -> str:
+        """
+        domain 정보를 나타내는 base url 반환한다. 잘못된 입력의 경우 예외를 던진다.
+        """
+        if kind == "real":
+            return "https://openapi.koreainvestment.com:9443"
+        elif kind == "virtual":
+            return "https://openapivts.koreainvestment.com:29443"
+
+        elif kind is None and input_url is not None:
+            return input_url
+        else:
+            raise RuntimeError("invalid domain info")
 
 
 class AccessToken:
-    def __init__(self, resp: Json) -> None:
-        r = to_namedtuple("res", resp)
-        time_margin = timedelta(minutes=1)
-
-        self.value = f"Bearer {str(r.access_token)}"
-        self.valid_until = datetime.now() + timedelta(seconds=int(r.expires_in)) - time_margin
+    def __init__(self, resp: NamedTuple) -> None:
+        self.value: str = f"Bearer {str(resp.access_token)}"
+        self.valid_until: datetime = self._get_valid_until(resp)
 
     def is_valid(self) -> bool:
         """
         access token이 유효한지 검사한다.
         """
         return datetime.now() < self.valid_until
+
+    def _get_valid_until(self, resp: NamedTuple) -> datetime:
+        """
+        현재 시각 기준으로 access token의 유효기한을 반환한다.
+        """
+        time_margin = 60
+        duration = int(resp.expires_in) - time_margin
+        return datetime.now() + timedelta(seconds=duration)
 
 
 class Api:
@@ -135,7 +195,7 @@ class Api:
 
     def _send_get_request(self, url_path, tr_id, params) -> Json:
         """
-        HTTP GET method로 request를 보내고 response에서 body.output을 반환한다. 
+        HTTP GET method로 request를 보내고 response에서 body.outputs를 반환한다. 
         """
         url = self.domain.get_url(url_path)
 
@@ -151,7 +211,8 @@ class Api:
             }
         ])
 
-        return send_get_request(url, headers, params)
+        r = send_get_request(url, headers, params)
+        return r.outputs
 
     # 인증-----------------
 
@@ -172,11 +233,12 @@ class Api:
         headers = get_base_headers()
 
         resp = requests.post(url, data=json.dumps(param), headers=headers)
+        body = APIResponse(resp)
+        body.raise_if_error()
 
-        if resp.status_code != 200:
-            raise RuntimeError("Authentication failed")
+        r = to_namedtuple("body", body.data)
 
-        self.token = AccessToken(resp.json())
+        self.token = AccessToken(r)
 
     def need_auth(self) -> bool:
         """
@@ -201,11 +263,10 @@ class Api:
         headers = merge_json([get_base_headers(), self.get_api_key_data()])
 
         resp = requests.post(url, data=json.dumps(param), headers=headers)
-        if resp.status_code != 200:
-            msg = f"get_has_key failed. response code: {resp.status_code}"
-            raise RuntimeError(msg)
+        body = APIResponse(resp)
+        body.raise_if_error()
 
-        return to_namedtuple("res", resp.json()).HASH
+        return body.data["HASH"]
 
     def get_api_key_data(self) -> Json:
         """
@@ -246,7 +307,8 @@ class Api:
             'FID_INPUT_ISCD': ticker
         }
 
-        return self._send_get_request(url_path, tr_id, params)
+        outputs = self._send_get_request(url_path, tr_id, params)
+        return outputs[0]
 
     # 시세 조회------------
 
@@ -276,7 +338,8 @@ class Api:
             "OVRS_ICLD_YN": "N"
         }
 
-        output = self._send_get_request(url_path, tr_id, params)
+        outputs = self._send_get_request(url_path, tr_id, params)
+        output = outputs[0]
         return int(output["ord_psbl_cash"])
 
     def get_kr_stock_balance(self):
@@ -288,21 +351,68 @@ class Api:
     # 잔고 조회------------
 
     # 매매-----------------
-    def buy_kr_stock(self, ticker: str, order_amount: int, price: int):
+    def _send_kr_stock_order(self, ticker: str, order_amount: int, price: int, buy: bool) -> Json:
+        """
+        국내 주식 매매(현금)
+        """
+        order_type = "00"  # 00: 지정가, 01: 시장가, ... (추후 옵션화 예정)
+        url_path = "/uapi/domestic-stock/v1/trading/order-cash"
+
+        if buy:
+            tr_id = "TTTC0802U"  # buy
+        else:
+            tr_id = "TTTC0801U"  # sell
+
+        param = {
+            "CANO": self.account.account_code,
+            "ACNT_PRDT_CD": self.account.product_code,
+            'PDNO': ticker,
+            'ORD_DVSN': order_type,
+            'ORD_QTY': str(order_amount),
+            'ORD_UNPR': str(price),
+            'CTAC_TLNO': '',
+            # 'SLL_TYPE': '01',
+            'ALGO_NO': ''
+        }
+
+        url = self.domain.get_url(url_path)
+
+        if self.need_auth():
+            self.auth()
+
+        headers = merge_json([
+            get_base_headers(),
+            self.get_api_key_data(),
+            {
+                "authorization": self.token.value,
+                "tr_id": tr_id
+            }
+        ])
+
+        self.set_hash_key(headers, param)
+
+        resp = requests.post(url, data=json.dumps(param), headers=headers)
+        body = APIResponse(resp)
+        body.raise_if_error()
+
+        return body.outputs[0]
+
+    def buy_kr_stock(self, ticker: str, order_amount: int, price: int) -> Json:
         """
         국내 주식 매수(현금)
         ticker: 종목코드
         order_amount: 주문 수량
         price: 주문 가격
         """
-        return
+        return self._send_kr_stock_order(ticker, order_amount, price, True)
 
-    def sell_kr_stock(self, ticker: str, order_amount: int, price: int):
+    def sell_kr_stock(self, ticker: str, order_amount: int, price: int) -> Json:
         """
         국내 주식 매매(현금)
         ticker: 종목코드
         order_amount: 주문 수량
         price: 주문 가격
         """
-        return
+        return self._send_kr_stock_order(ticker, order_amount, price, False)
+
     # 매매-----------------
