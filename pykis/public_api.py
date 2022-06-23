@@ -17,6 +17,7 @@ from collections import namedtuple
 from typing import NamedTuple, Optional, Dict, Iterable, Any, List
 import json
 import requests
+import pandas as pd
 
 Json = Dict[str, Any]
 
@@ -26,7 +27,8 @@ Json = Dict[str, Any]
 class APIResponse:
     def __init__(self, resp: requests.Response) -> None:
         self.http_code: int = resp.status_code
-        self.data: Json = resp.json()
+        self.header: Json = self._get_header(resp)
+        self.body: Json = resp.json()
         self.message: str = self._get_message()
         self.return_code: Optional[str] = self._get_return_code()
         self.outputs: List[Json] = self._get_outputs()
@@ -53,10 +55,10 @@ class APIResponse:
         """
         API의 response에서 응답 메시지를 찾아서 반환한다. 없는 경우 빈 문자열을 반환.
         """
-        if "msg" in self.data:
-            return self.data["msg"]
-        elif "msg1" in self.data:
-            return self.data["msg1"]
+        if "msg" in self.body:
+            return self.body["msg"]
+        elif "msg1" in self.body:
+            return self.body["msg1"]
         else:
             return ""
 
@@ -64,7 +66,7 @@ class APIResponse:
         """
         API에서 성공/실패를 나타내는 return code를 찾아서 반환한다. 없는 경우 None을 반환
         """
-        return self.data.get("rt_cd", None)
+        return self.body.get("rt_cd", None)
 
     def _get_outputs(self) -> List[Json]:
         """
@@ -72,10 +74,20 @@ class APIResponse:
         뒤에 붙은 번호 순서대로(output이 있는 경우 제일 앞) 배치한다.
         """
         target_keys = ["output", "output1", "output2"]
-        ret = [self.data[target]
-               for target in target_keys if target in self.data]
+        ret = [self.body[target]
+               for target in target_keys if target in self.body]
 
         return ret
+
+    def _get_header(self, resp: requests.Response) -> Json:
+        """
+        API의 response에서 header 정보를 찾아서 반환한다. 
+        """
+        header = dict()
+        for x in resp.headers.keys():
+            if x.islower():
+                header[x] = resp.headers.get(x)
+        return header
 
 
 def merge_json(datas: Iterable[Json]) -> Json:
@@ -116,10 +128,10 @@ def send_get_request(url: str, headers: Json, params: Json) -> APIResponse:
     HTTP GET method로 request를 보내고 APIResponse 객체를 반환한다. 
     """
     resp = requests.get(url, headers=headers, params=params)
-    body = APIResponse(resp)
-    body.raise_if_error()
+    r = APIResponse(resp)
+    r.raise_if_error()
 
-    return body
+    return r
 
 
 # request 관련 유틸리티------------------
@@ -156,6 +168,7 @@ class DomainInfo:
         실제 투자용 도메인 정보인지 여부를 반환한다. 
         """
         return self.kind == "real"
+
 
 class AccessToken:
     def __init__(self, resp: NamedTuple) -> None:
@@ -199,9 +212,9 @@ class Api:
         if account_info is not None:
             self.account = to_namedtuple("account", account_info)
 
-    def _send_get_request(self, url_path: str, tr_id: str, params: Json) -> Json:
+    def _send_get_request(self, url_path: str, tr_id: str, params: Json, extra_header: Json = dict()) -> APIResponse:
         """
-        HTTP GET method로 request를 보내고 response에서 body.outputs를 반환한다. 
+        HTTP GET method로 request를 보내고 response를 반환한다. 
         """
         url = self.domain.get_url(url_path)
 
@@ -216,11 +229,11 @@ class Api:
             {
                 "authorization": self.token.value,
                 "tr_id": tr_id
-            }
+            },
+            extra_header
         ])
 
-        r = send_get_request(url, headers, params)
-        return r.outputs
+        return send_get_request(url, headers, params)
 
     # 인증-----------------
 
@@ -241,10 +254,10 @@ class Api:
         headers = get_base_headers()
 
         resp = requests.post(url, data=json.dumps(param), headers=headers)
-        body = APIResponse(resp)
-        body.raise_if_error()
+        r = APIResponse(resp)
+        r.raise_if_error()
 
-        r = to_namedtuple("body", body.data)
+        r = to_namedtuple("body", r.body)
 
         self.token = AccessToken(r)
 
@@ -271,10 +284,10 @@ class Api:
         headers = merge_json([get_base_headers(), self.get_api_key_data()])
 
         resp = requests.post(url, data=json.dumps(param), headers=headers)
-        body = APIResponse(resp)
-        body.raise_if_error()
+        r = APIResponse(resp)
+        r.raise_if_error()
 
-        return body.data["HASH"]
+        return r.body["HASH"]
 
     def get_api_key_data(self) -> Json:
         """
@@ -311,12 +324,12 @@ class Api:
         tr_id = "FHKST01010100"
 
         params = {
-            'FID_COND_MRKT_DIV_CODE': 'J',
-            'FID_INPUT_ISCD': ticker
+            "FID_COND_MRKT_DIV_CODE": "J",
+            "FID_INPUT_ISCD": ticker
         }
 
-        outputs = self._send_get_request(url_path, tr_id, params)
-        return outputs[0]
+        res = self._send_get_request(url_path, tr_id, params)
+        return res.outputs[0]
 
     # 시세 조회------------
 
@@ -346,16 +359,95 @@ class Api:
             "OVRS_ICLD_YN": "N"
         }
 
-        outputs = self._send_get_request(url_path, tr_id, params)
-        output = outputs[0]
+        res = self._send_get_request(url_path, tr_id, params)
+        output = res.outputs[0]
         return int(output["ord_psbl_cash"])
 
-    def get_kr_stock_balance(self):
+    def _get_kr_total_balance(self, extra_header: Json = dict(), extra_param: Json = dict()) -> APIResponse:
+        """
+        국내 주식 잔고의 조회 전체 결과를 반환한다.
+        """
+        url_path = "/uapi/domestic-stock/v1/trading/inquire-balance"
+        tr_id = "TTTC8434R"
+
+        extra_header = merge_json([{"tr_cont": ""}, extra_header])
+
+        params = {
+            "CANO": self.account.account_code,
+            "ACNT_PRDT_CD": self.account.product_code,
+            "AFHR_FLPR_YN": "N",
+            "FNCG_AMT_AUTO_RDPT_YN": "N",
+            "FUND_STTL_ICLD_YN": "N",
+            "INQR_DVSN": "01",
+            "OFL_YN": "N",
+            "PRCS_DVSN": "01",
+            "UNPR_DVSN": "01",
+            "CTX_AREA_FK100": "",
+            "CTX_AREA_NK100": ""
+        }
+
+        params = merge_json([params, extra_param])
+
+        return self._send_get_request(url_path, tr_id, params, extra_header=extra_header)
+
+    def get_kr_stock_balance(self) -> pd.DataFrame:
         """
         국내 주식 잔고 조회
         return: 국내 주식 잔고 정보를 DataFrame으로 반환
         """
-        return
+
+        def to_dataframe(output: Json) -> pd.DataFrame:
+            tdf = pd.DataFrame(output)
+            if tdf.empty:
+                return tdf
+
+            tdf.set_index("pdno", inplace=True)
+            cf1 = ["prdt_name", "hldg_qty", "ord_psbl_qty", "pchs_avg_pric",
+                   "evlu_pfls_rt", "prpr", "bfdy_cprs_icdc", "fltt_rt"]
+            cf2 = ["종목명", "보유수량", "매도가능수량", "매입단가", "수익율", "현재가", "전일대비", "등락"]
+            tdf = tdf[cf1]
+            tdf[cf1[1:]] = tdf[cf1[1:]].apply(pd.to_numeric)
+            ren_dict = dict(zip(cf1, cf2))
+            return tdf.rename(columns=ren_dict)
+
+        max_count = 100
+        outputs = []
+
+        # 초기값
+        extra_header = dict()
+        extra_param = dict()
+
+        for i in range(max_count):
+            if i > 0:
+                extra_header = {"tr_cont": "N"}    # 공백 : 초기 조회, N : 다음 데이터 조회
+
+            res = self._get_kr_total_balance(
+                extra_header=extra_header,
+                extra_param=extra_param
+            )
+            df = to_dataframe(res.outputs[0])
+            outputs.append(df)
+
+            response_tr_cont = res.header["tr_cont"]
+            no_more_data = response_tr_cont not in ["F", "M"]
+
+            if no_more_data:
+                break
+
+            extra_param["CTX_AREA_FK100"] = res.body["ctx_area_fk100"]
+            extra_param["CTX_AREA_NK100"] = res.body["ctx_area_nk100"]
+
+        return pd.concat(outputs)
+
+    def get_kr_deposit(self) -> int:
+        """
+        국내 주식 잔고의 총 예수금을 반환한다.
+        """
+        res = self._get_kr_total_balance()
+
+        output2 = res.outputs[1]
+        return int(output2[0]["dnca_tot_amt"])
+
     # 잔고 조회------------
 
     # 매매-----------------
@@ -374,13 +466,13 @@ class Api:
         param = {
             "CANO": self.account.account_code,
             "ACNT_PRDT_CD": self.account.product_code,
-            'PDNO': ticker,
-            'ORD_DVSN': order_type,
-            'ORD_QTY': str(order_amount),
-            'ORD_UNPR': str(price),
-            'CTAC_TLNO': '',
-            # 'SLL_TYPE': '01',
-            'ALGO_NO': ''
+            "PDNO": ticker,
+            "ORD_DVSN": order_type,
+            "ORD_QTY": str(order_amount),
+            "ORD_UNPR": str(price),
+            "CTAC_TLNO": "",
+            # "SLL_TYPE": "01",
+            "ALGO_NO": ""
         }
 
         url = self.domain.get_url(url_path)
@@ -402,10 +494,10 @@ class Api:
         self.set_hash_key(headers, param)
 
         resp = requests.post(url, data=json.dumps(param), headers=headers)
-        body = APIResponse(resp)
-        body.raise_if_error()
+        r = APIResponse(resp)
+        r.raise_if_error()
 
-        return body.outputs[0]
+        return r.outputs[0]
 
     def buy_kr_stock(self, ticker: str, order_amount: int, price: int) -> Json:
         """
@@ -426,7 +518,6 @@ class Api:
         return self._send_kr_stock_order(ticker, order_amount, price, False)
 
     # 매매-----------------
-
 
     def adjust_tr_id(self, tr_id: str) -> str:
         """
