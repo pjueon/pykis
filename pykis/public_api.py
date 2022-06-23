@@ -14,7 +14,7 @@
 
 from datetime import datetime, timedelta
 from collections import namedtuple
-from typing import NamedTuple, Optional, Dict, Iterable, Any, List
+from typing import NamedTuple, Optional, Dict, Iterable, Any, List, Tuple
 import json
 import requests
 import pandas as pd
@@ -222,28 +222,8 @@ class Api:
         if account_info is not None:
             self.account = to_namedtuple("account", account_info)
 
-    def _send_get_request(self, url_path: str, tr_id: str, params: Json, extra_header: Json = dict()) -> APIResponse:
-        """
-        HTTP GET method로 request를 보내고 response를 반환한다. 
-        """
-        url = self.domain.get_url(url_path)
 
-        if self.need_auth():
-            self.auth()
 
-        tr_id = self.adjust_tr_id(tr_id)
-
-        headers = merge_json([
-            get_base_headers(),
-            self.get_api_key_data(),
-            {
-                "authorization": self.token.value,
-                "tr_id": tr_id
-            },
-            extra_header
-        ])
-
-        return send_get_request(url, headers, params)
 
     # 인증-----------------
 
@@ -252,7 +232,6 @@ class Api:
         access token을 발급한다.
         """
         url_path = "/oauth2/tokenP"
-        url = self.domain.get_url(url_path)
 
         param = merge_json([
             self.get_api_key_data(),
@@ -261,9 +240,9 @@ class Api:
             }
         ])
 
-        headers = get_base_headers()
-
+        url, headers = self._http_request_parameters(url_path, None, False)
         r = send_post_request(url, headers, param)
+
         body = to_namedtuple("body", r.body)
 
         self.token = AccessToken(body)
@@ -286,9 +265,8 @@ class Api:
         hash key 값을 가져온다. 
         """
         url_path = "/uapi/hashkey"
-        url = self.domain.get_url(url_path)
 
-        headers = merge_json([get_base_headers(), self.get_api_key_data()])
+        url, headers = self._http_request_parameters(url_path, None, False)
         r = send_post_request(url, headers, param)
 
         return r.body["HASH"]
@@ -454,6 +432,8 @@ class Api:
 
     # 잔고 조회------------
 
+
+
     # 매매-----------------
     def _send_kr_stock_order(self, ticker: str, order_amount: int, price: int, buy: bool) -> Json:
         """
@@ -479,21 +459,7 @@ class Api:
             "ALGO_NO": ""
         }
 
-        url = self.domain.get_url(url_path)
-
-        if self.need_auth():
-            self.auth()
-
-        tr_id = self.adjust_tr_id(tr_id)
-
-        headers = merge_json([
-            get_base_headers(),
-            self.get_api_key_data(),
-            {
-                "authorization": self.token.value,
-                "tr_id": tr_id
-            }
-        ])
+        url, headers = self._http_request_parameters(url_path, tr_id, True)
 
         self.set_hash_key(headers, param)
 
@@ -521,7 +487,13 @@ class Api:
 
     # 매매-----------------
 
-    def adjust_tr_id(self, tr_id: str) -> str:
+
+
+
+
+    # HTTTP----------------
+
+    def _adjust_tr_id(self, tr_id: str) -> str:
         """
         모의 투자인 경우, tr_id를 필요에 따라 변경한다.
         """
@@ -529,3 +501,41 @@ class Api:
             if len(tr_id) >= 1 and tr_id[0] in ["T", "J", "C"]:
                 return "V" + tr_id[1:]
         return tr_id
+
+    def _send_get_request(self, url_path: str, tr_id: str, params: Json, extra_header: Json = dict()) -> APIResponse:
+        """
+        HTTP GET method로 request를 보내고 response를 반환한다. 
+        """
+        url, headers = self._http_request_parameters(url_path, tr_id, auth=True, extra_header=extra_header)
+        return send_get_request(url, headers, params)
+
+    def _http_request_parameters(self, url_path: str, tr_id: Optional[str], auth: bool, extra_header: Json = dict()) -> Tuple[str, Json]:
+        """
+        http request용 파라미터를 튜플로 반환한다. 
+        """
+        url = self.domain.get_url(url_path)
+
+        tr_id = self._adjust_tr_id(tr_id)
+
+        headers = [
+            get_base_headers(),
+            self.get_api_key_data(),
+        ]
+
+        if tr_id is not None:
+            headers.append({"tr_id": tr_id})
+                
+        if auth:
+            if self.need_auth():
+                self.auth()
+            headers.append({
+                "authorization": self.token.value,
+            })
+        
+        headers.append(extra_header)
+
+        headers = merge_json(headers)
+
+        return url, headers
+
+    # HTTTP----------------
