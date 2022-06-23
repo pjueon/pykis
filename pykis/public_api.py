@@ -397,6 +397,15 @@ class Api:
 
         return tdf.rename(columns=ren_dict)
 
+    def get_kr_deposit(self) -> int:
+        """
+        국내 주식 잔고의 총 예수금을 반환한다.
+        """
+        outputs = self._get_kr_total_balance()
+
+        output2 = outputs[1]
+        return int(output2[0]["dnca_tot_amt"])
+
     # 잔고 조회------------
 
     # 매매-----------------
