@@ -233,16 +233,14 @@ class Api:
         """
         url_path = "/oauth2/tokenP"
 
-        param = merge_json([
+        params = merge_json([
             self.get_api_key_data(),
             {
                 "grant_type": "client_credentials"
             }
         ])
 
-        url, headers = self._http_request_parameters(url_path, None, False)
-        r = send_post_request(url, headers, param)
-
+        r = self._send_post_request(url_path, tr_id=None, params=params, auth=False, hash=False)
         body = to_namedtuple("body", r.body)
 
         self.token = AccessToken(body)
@@ -260,14 +258,12 @@ class Api:
         hash_key = self.get_hash_key(param)
         header["hashkey"] = hash_key
 
-    def get_hash_key(self, param: Json) -> str:
+    def get_hash_key(self, params: Json) -> str:
         """
         hash key 값을 가져온다. 
         """
         url_path = "/uapi/hashkey"
-
-        url, headers = self._http_request_parameters(url_path, None, False)
-        r = send_post_request(url, headers, param)
+        r = self._send_post_request(url_path, tr_id=None, params=params, auth=False, hash=False)
 
         return r.body["HASH"]
 
@@ -447,7 +443,7 @@ class Api:
         else:
             tr_id = "TTTC0801U"  # sell
 
-        param = {
+        params = {
             "CANO": self.account.account_code,
             "ACNT_PRDT_CD": self.account.product_code,
             "PDNO": ticker,
@@ -459,12 +455,7 @@ class Api:
             "ALGO_NO": ""
         }
 
-        url, headers = self._http_request_parameters(url_path, tr_id, True)
-
-        self.set_hash_key(headers, param)
-
-        r = send_post_request(url, headers, param)
-
+        r = self._send_post_request(url_path, tr_id=tr_id, params=params, auth=True, hash=True)
         return r.outputs[0]
 
     def buy_kr_stock(self, ticker: str, order_amount: int, price: int) -> Json:
@@ -508,6 +499,15 @@ class Api:
         """
         url, headers = self._http_request_parameters(url_path, tr_id, auth=True, extra_header=extra_header)
         return send_get_request(url, headers, params)
+
+    def _send_post_request(self, url_path: str, tr_id: Optional[str], params: Json, auth: bool, hash: bool, extra_header: Json = dict()) -> APIResponse:
+        """
+        HTTP GET method로 request를 보내고 response를 반환한다. 
+        """
+        url, headers = self._http_request_parameters(url_path, tr_id, auth=auth, extra_header=extra_header)
+        if hash:
+            self.set_hash_key(headers, params)
+        return send_post_request(url, headers, params)
 
     def _http_request_parameters(self, url_path: str, tr_id: Optional[str], auth: bool, extra_header: Json = dict()) -> Tuple[str, Json]:
         """
