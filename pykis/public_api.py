@@ -127,7 +127,8 @@ def send_get_request(url, headers, params) -> APIResponse:
 
 class DomainInfo:
     def __init__(self, kind: Optional[str] = None, url: Optional[str] = None) -> None:
-        self.base_url = self._get_base_url(kind, url)
+        self.kind = kind
+        self.base_url = self._get_base_url(url)
 
     def get_url(self, url_path: str):
         """
@@ -136,20 +137,25 @@ class DomainInfo:
         separator = "" if url_path.startswith("/") else "/"
         return f"{self.base_url}{separator}{url_path}"
 
-    def _get_base_url(self, kind: Optional[str], input_url: Optional[str]) -> str:
+    def _get_base_url(self, input_url: Optional[str]) -> str:
         """
         domain 정보를 나타내는 base url 반환한다. 잘못된 입력의 경우 예외를 던진다.
         """
-        if kind == "real":
+        if self.kind == "real":
             return "https://openapi.koreainvestment.com:9443"
-        elif kind == "virtual":
+        elif self.kind == "virtual":
             return "https://openapivts.koreainvestment.com:29443"
 
-        elif kind is None and input_url is not None:
+        elif self.kind is None and input_url is not None:
             return input_url
         else:
             raise RuntimeError("invalid domain info")
 
+    def is_real(self) -> bool:
+        """
+        실제 투자용 도메인 정보인지 여부를 반환한다. 
+        """
+        return self.kind == "real"
 
 class AccessToken:
     def __init__(self, resp: NamedTuple) -> None:
