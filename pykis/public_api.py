@@ -183,15 +183,15 @@ class Api:
         self.token: Optional[AccessToken] = None
         self.account: Optional[NamedTuple] = None
 
-        if account_info is not None:
-            self.set_account(account_info)
+        self.set_account(account_info)
 
-    def set_account(self, account_info: Json) -> None:
+    def set_account(self, account_info: Optional[Json]) -> None:
         """
         사용할 계좌 정보를 설정한다.
         account_info: 사용할 계좌 정보. { "account_code" : "[계좌번호 앞 8자리 숫자]", "product_code" : "[계좌번호 뒤 2자리 숫자]" }
         """
-        self.account = to_namedtuple("account", account_info)
+        if account_info is not None:
+            self.account = to_namedtuple("account", account_info)
 
     def _send_get_request(self, url_path, tr_id, params) -> Json:
         """
