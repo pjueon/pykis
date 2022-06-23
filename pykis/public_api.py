@@ -212,7 +212,7 @@ class Api:
         if account_info is not None:
             self.account = to_namedtuple("account", account_info)
 
-    def _send_get_request(self, url_path: str, tr_id: str, params: Json) -> APIResponse:
+    def _send_get_request(self, url_path: str, tr_id: str, params: Json, extra_header: Json = dict()) -> APIResponse:
         """
         HTTP GET method로 request를 보내고 response를 반환한다. 
         """
@@ -229,7 +229,8 @@ class Api:
             {
                 "authorization": self.token.value,
                 "tr_id": tr_id
-            }
+            },
+            extra_header
         ])
 
         return send_get_request(url, headers, params)
@@ -359,15 +360,17 @@ class Api:
         }
 
         res = self._send_get_request(url_path, tr_id, params)
-        output =  res.outputs[0]
+        output = res.outputs[0]
         return int(output["ord_psbl_cash"])
 
-    def _get_kr_total_balance(self) -> Json:
+    def _get_kr_total_balance(self, tr_cont: str = "", fk100: str = "", nk100: str = "") -> APIResponse:
         """
-        국내 주식 잔고의 전체 내용을 Json으로 반환한다.
+        국내 주식 잔고의 조회 전체 결과를 반환한다.
         """
         url_path = "/uapi/domestic-stock/v1/trading/inquire-balance"
         tr_id = "TTTC8434R"
+
+        extra_header = {"tr_cont": tr_cont}
 
         params = {
             "CANO": self.account.account_code,
@@ -379,41 +382,66 @@ class Api:
             "OFL_YN": "N",
             "PRCS_DVSN": "01",
             "UNPR_DVSN": "01",
-            "CTX_AREA_FK100": "",
-            "CTX_AREA_NK100": ""
+            "CTX_AREA_FK100": fk100,
+            "CTX_AREA_NK100": nk100
         }
 
-        res = self._send_get_request(url_path, tr_id, params)
-        return res.outputs
+        return self._send_get_request(url_path, tr_id, params, extra_header=extra_header)
 
     def get_kr_stock_balance(self) -> pd.DataFrame:
         """
         국내 주식 잔고 조회
         return: 국내 주식 잔고 정보를 DataFrame으로 반환
         """
-        outputs = self._get_kr_total_balance()
 
-        tdf = pd.DataFrame(outputs[0])
-        if tdf.empty:
-            return tdf
+        def to_dataframe(output: Json) -> pd.DataFrame:
+            tdf = pd.DataFrame(output)
+            if tdf.empty:
+                return tdf
 
-        tdf.set_index("pdno", inplace=True)
-        cf1 = ["prdt_name", "hldg_qty", "ord_psbl_qty", "pchs_avg_pric",
-               "evlu_pfls_rt", "prpr", "bfdy_cprs_icdc", "fltt_rt"]
-        cf2 = ["종목명", "보유수량", "매도가능수량", "매입단가", "수익율", "현재가", "전일대비", "등락"]
-        tdf = tdf[cf1]
-        tdf[cf1[1:]] = tdf[cf1[1:]].apply(pd.to_numeric)
-        ren_dict = dict(zip(cf1, cf2))
+            tdf.set_index("pdno", inplace=True)
+            cf1 = ["prdt_name", "hldg_qty", "ord_psbl_qty", "pchs_avg_pric",
+                   "evlu_pfls_rt", "prpr", "bfdy_cprs_icdc", "fltt_rt"]
+            cf2 = ["종목명", "보유수량", "매도가능수량", "매입단가", "수익율", "현재가", "전일대비", "등락"]
+            tdf = tdf[cf1]
+            tdf[cf1[1:]] = tdf[cf1[1:]].apply(pd.to_numeric)
+            ren_dict = dict(zip(cf1, cf2))
+            return tdf.rename(columns=ren_dict)
 
-        return tdf.rename(columns=ren_dict)
+        max_count = 100
+        outputs = []
+
+        ctx_area_fk100 = ""   # 초기값: 공란
+        ctx_area_nk100 = ""   # 초기값: 공란
+
+        for i in range(max_count):
+            is_continue = i > 0
+
+            tr_cont = "N" if is_continue else ""    # 공백 : 초기 조회, N : 다음 데이터 조회
+
+            res = self._get_kr_total_balance(
+                tr_cont=tr_cont, fk100=ctx_area_fk100, nk100=ctx_area_nk100)
+            df = to_dataframe(res.outputs[0])
+            outputs.append(df)
+
+            response_tr_cont = res.header["tr_cont"]
+            no_more_data = response_tr_cont not in ["F", "M"]
+
+            if no_more_data:
+                break
+
+            ctx_area_fk100 = res.body["ctx_area_fk100"]
+            ctx_area_nk100 = res.body["ctx_area_nk100"]
+
+        return pd.concat(outputs)
 
     def get_kr_deposit(self) -> int:
         """
         국내 주식 잔고의 총 예수금을 반환한다.
         """
-        outputs = self._get_kr_total_balance()
+        res = self._get_kr_total_balance()
 
-        output2 = outputs[1]
+        output2 = res.outputs[1]
         return int(output2[0]["dnca_tot_amt"])
 
     # 잔고 조회------------
