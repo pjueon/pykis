@@ -363,14 +363,14 @@ class Api:
         output = res.outputs[0]
         return int(output["ord_psbl_cash"])
 
-    def _get_kr_total_balance(self, tr_cont: str = "", fk100: str = "", nk100: str = "") -> APIResponse:
+    def _get_kr_total_balance(self, extra_header: Json = dict(), extra_param: Json = dict()) -> APIResponse:
         """
         국내 주식 잔고의 조회 전체 결과를 반환한다.
         """
         url_path = "/uapi/domestic-stock/v1/trading/inquire-balance"
         tr_id = "TTTC8434R"
 
-        extra_header = {"tr_cont": tr_cont}
+        extra_header = merge_json([{"tr_cont": ""}, extra_header])
 
         params = {
             "CANO": self.account.account_code,
@@ -382,9 +382,11 @@ class Api:
             "OFL_YN": "N",
             "PRCS_DVSN": "01",
             "UNPR_DVSN": "01",
-            "CTX_AREA_FK100": fk100,
-            "CTX_AREA_NK100": nk100
+            "CTX_AREA_FK100": "",
+            "CTX_AREA_NK100": ""
         }
+
+        params = merge_json([params, extra_param])
 
         return self._send_get_request(url_path, tr_id, params, extra_header=extra_header)
 
@@ -411,16 +413,18 @@ class Api:
         max_count = 100
         outputs = []
 
-        ctx_area_fk100 = ""   # 초기값: 공란
-        ctx_area_nk100 = ""   # 초기값: 공란
+        # 초기값
+        extra_header = dict()
+        extra_param = dict()
 
         for i in range(max_count):
-            is_continue = i > 0
-
-            tr_cont = "N" if is_continue else ""    # 공백 : 초기 조회, N : 다음 데이터 조회
+            if i > 0:
+                extra_header = {"tr_cont": "N"}    # 공백 : 초기 조회, N : 다음 데이터 조회
 
             res = self._get_kr_total_balance(
-                tr_cont=tr_cont, fk100=ctx_area_fk100, nk100=ctx_area_nk100)
+                extra_header=extra_header,
+                extra_param=extra_param
+            )
             df = to_dataframe(res.outputs[0])
             outputs.append(df)
 
@@ -430,8 +434,8 @@ class Api:
             if no_more_data:
                 break
 
-            ctx_area_fk100 = res.body["ctx_area_fk100"]
-            ctx_area_nk100 = res.body["ctx_area_nk100"]
+            extra_param["CTX_AREA_FK100"] = res.body["ctx_area_fk100"]
+            extra_param["CTX_AREA_NK100"] = res.body["ctx_area_nk100"]
 
         return pd.concat(outputs)
 
