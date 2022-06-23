@@ -111,7 +111,7 @@ def get_base_headers() -> Json:
     return base
 
 
-def send_get_request(url, headers, params) -> APIResponse:
+def send_get_request(url: str, headers: Json, params: Json) -> APIResponse:
     """
     HTTP GET method로 request를 보내고 APIResponse 객체를 반환한다. 
     """
@@ -199,7 +199,7 @@ class Api:
         if account_info is not None:
             self.account = to_namedtuple("account", account_info)
 
-    def _send_get_request(self, url_path, tr_id, params) -> Json:
+    def _send_get_request(self, url_path: str, tr_id: str, params: Json) -> Json:
         """
         HTTP GET method로 request를 보내고 response에서 body.outputs를 반환한다. 
         """
@@ -207,6 +207,8 @@ class Api:
 
         if self.need_auth():
             self.auth()
+
+        tr_id = self.adjust_tr_id(tr_id)
 
         headers = merge_json([
             get_base_headers(),
@@ -386,6 +388,8 @@ class Api:
         if self.need_auth():
             self.auth()
 
+        tr_id = self.adjust_tr_id(tr_id)
+
         headers = merge_json([
             get_base_headers(),
             self.get_api_key_data(),
@@ -422,3 +426,13 @@ class Api:
         return self._send_kr_stock_order(ticker, order_amount, price, False)
 
     # 매매-----------------
+
+
+    def adjust_tr_id(self, tr_id: str) -> str:
+        """
+        모의 투자인 경우, tr_id를 필요에 따라 변경한다.
+        """
+        if not self.domain.is_real():
+            if len(tr_id) >= 1 and tr_id[0] in ["T", "J", "C"]:
+                return "V" + tr_id[1:]
+        return tr_id
