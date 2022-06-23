@@ -212,9 +212,9 @@ class Api:
         if account_info is not None:
             self.account = to_namedtuple("account", account_info)
 
-    def _send_get_request(self, url_path: str, tr_id: str, params: Json) -> Json:
+    def _send_get_request(self, url_path: str, tr_id: str, params: Json) -> APIResponse:
         """
-        HTTP GET method로 request를 보내고 response에서 outputs를 반환한다. 
+        HTTP GET method로 request를 보내고 response를 반환한다. 
         """
         url = self.domain.get_url(url_path)
 
@@ -232,8 +232,7 @@ class Api:
             }
         ])
 
-        r = send_get_request(url, headers, params)
-        return r.outputs
+        return send_get_request(url, headers, params)
 
     # 인증-----------------
 
@@ -328,8 +327,8 @@ class Api:
             "FID_INPUT_ISCD": ticker
         }
 
-        outputs = self._send_get_request(url_path, tr_id, params)
-        return outputs[0]
+        res = self._send_get_request(url_path, tr_id, params)
+        return res.outputs[0]
 
     # 시세 조회------------
 
@@ -359,8 +358,8 @@ class Api:
             "OVRS_ICLD_YN": "N"
         }
 
-        outputs = self._send_get_request(url_path, tr_id, params)
-        output = outputs[0]
+        res = self._send_get_request(url_path, tr_id, params)
+        output =  res.outputs[0]
         return int(output["ord_psbl_cash"])
 
     def _get_kr_total_balance(self) -> Json:
@@ -384,8 +383,8 @@ class Api:
             "CTX_AREA_NK100": ""
         }
 
-        outputs = self._send_get_request(url_path, tr_id, params)
-        return outputs
+        res = self._send_get_request(url_path, tr_id, params)
+        return res.outputs
 
     def get_kr_stock_balance(self) -> pd.DataFrame:
         """
