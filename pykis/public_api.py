@@ -111,7 +111,7 @@ def get_base_headers() -> Json:
     return base
 
 
-def send_get_request(url, headers, params) -> APIResponse:
+def send_get_request(url: str, headers: Json, params: Json) -> APIResponse:
     """
     HTTP GET method로 request를 보내고 APIResponse 객체를 반환한다. 
     """
@@ -127,7 +127,8 @@ def send_get_request(url, headers, params) -> APIResponse:
 
 class DomainInfo:
     def __init__(self, kind: Optional[str] = None, url: Optional[str] = None) -> None:
-        self.base_url = self._get_base_url(kind, url)
+        self.kind = kind
+        self.base_url = self._get_base_url(url)
 
     def get_url(self, url_path: str):
         """
@@ -136,20 +137,25 @@ class DomainInfo:
         separator = "" if url_path.startswith("/") else "/"
         return f"{self.base_url}{separator}{url_path}"
 
-    def _get_base_url(self, kind: Optional[str], input_url: Optional[str]) -> str:
+    def _get_base_url(self, input_url: Optional[str]) -> str:
         """
         domain 정보를 나타내는 base url 반환한다. 잘못된 입력의 경우 예외를 던진다.
         """
-        if kind == "real":
+        if self.kind == "real":
             return "https://openapi.koreainvestment.com:9443"
-        elif kind == "virtual":
+        elif self.kind == "virtual":
             return "https://openapivts.koreainvestment.com:29443"
 
-        elif kind is None and input_url is not None:
+        elif self.kind is None and input_url is not None:
             return input_url
         else:
             raise RuntimeError("invalid domain info")
 
+    def is_real(self) -> bool:
+        """
+        실제 투자용 도메인 정보인지 여부를 반환한다. 
+        """
+        return self.kind == "real"
 
 class AccessToken:
     def __init__(self, resp: NamedTuple) -> None:
@@ -183,17 +189,17 @@ class Api:
         self.token: Optional[AccessToken] = None
         self.account: Optional[NamedTuple] = None
 
-        if account_info is not None:
-            self.set_account(account_info)
+        self.set_account(account_info)
 
-    def set_account(self, account_info: Json) -> None:
+    def set_account(self, account_info: Optional[Json]) -> None:
         """
         사용할 계좌 정보를 설정한다.
         account_info: 사용할 계좌 정보. { "account_code" : "[계좌번호 앞 8자리 숫자]", "product_code" : "[계좌번호 뒤 2자리 숫자]" }
         """
-        self.account = to_namedtuple("account", account_info)
+        if account_info is not None:
+            self.account = to_namedtuple("account", account_info)
 
-    def _send_get_request(self, url_path, tr_id, params) -> Json:
+    def _send_get_request(self, url_path: str, tr_id: str, params: Json) -> Json:
         """
         HTTP GET method로 request를 보내고 response에서 body.outputs를 반환한다. 
         """
@@ -201,6 +207,8 @@ class Api:
 
         if self.need_auth():
             self.auth()
+
+        tr_id = self.adjust_tr_id(tr_id)
 
         headers = merge_json([
             get_base_headers(),
@@ -380,6 +388,8 @@ class Api:
         if self.need_auth():
             self.auth()
 
+        tr_id = self.adjust_tr_id(tr_id)
+
         headers = merge_json([
             get_base_headers(),
             self.get_api_key_data(),
@@ -416,3 +426,13 @@ class Api:
         return self._send_kr_stock_order(ticker, order_amount, price, False)
 
     # 매매-----------------
+
+
+    def adjust_tr_id(self, tr_id: str) -> str:
+        """
+        모의 투자인 경우, tr_id를 필요에 따라 변경한다.
+        """
+        if not self.domain.is_real():
+            if len(tr_id) >= 1 and tr_id[0] in ["T", "J", "C"]:
+                return "V" + tr_id[1:]
+        return tr_id
