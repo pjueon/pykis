@@ -133,6 +133,16 @@ def send_get_request(url: str, headers: Json, params: Json) -> APIResponse:
 
     return r
 
+def send_post_request(url: str, headers: Json, params: Json) -> APIResponse:
+    """
+    HTTP POST method로 request를 보내고 APIResponse 객체를 반환한다. 
+    """
+    resp = requests.post(url, headers=headers, data=json.dumps(params))
+    r = APIResponse(resp)
+    r.raise_if_error()
+
+    return r    
+
 
 # request 관련 유틸리티------------------
 
@@ -253,13 +263,10 @@ class Api:
 
         headers = get_base_headers()
 
-        resp = requests.post(url, data=json.dumps(param), headers=headers)
-        r = APIResponse(resp)
-        r.raise_if_error()
+        r = send_post_request(url, headers, param)
+        body = to_namedtuple("body", r.body)
 
-        r = to_namedtuple("body", r.body)
-
-        self.token = AccessToken(r)
+        self.token = AccessToken(body)
 
     def need_auth(self) -> bool:
         """
@@ -282,10 +289,7 @@ class Api:
         url = self.domain.get_url(url_path)
 
         headers = merge_json([get_base_headers(), self.get_api_key_data()])
-
-        resp = requests.post(url, data=json.dumps(param), headers=headers)
-        r = APIResponse(resp)
-        r.raise_if_error()
+        r = send_post_request(url, headers, param)
 
         return r.body["HASH"]
 
@@ -493,9 +497,7 @@ class Api:
 
         self.set_hash_key(headers, param)
 
-        resp = requests.post(url, data=json.dumps(param), headers=headers)
-        r = APIResponse(resp)
-        r.raise_if_error()
+        r = send_post_request(url, headers, param)
 
         return r.outputs[0]
 
