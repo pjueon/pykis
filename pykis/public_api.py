@@ -133,6 +133,7 @@ def send_get_request(url: str, headers: Json, params: Json) -> APIResponse:
 
     return r
 
+
 def send_post_request(url: str, headers: Json, params: Json) -> APIResponse:
     """
     HTTP POST method로 request를 보내고 APIResponse 객체를 반환한다. 
@@ -141,7 +142,7 @@ def send_post_request(url: str, headers: Json, params: Json) -> APIResponse:
     r = APIResponse(resp)
     r.raise_if_error()
 
-    return r    
+    return r
 
 
 # request 관련 유틸리티------------------
@@ -222,9 +223,6 @@ class Api:
         if account_info is not None:
             self.account = to_namedtuple("account", account_info)
 
-
-
-
     # 인증-----------------
 
     def auth(self) -> None:
@@ -240,7 +238,8 @@ class Api:
             }
         ])
 
-        r = self._send_post_request(url_path, tr_id=None, params=params, auth=False, hash=False)
+        r = self._send_post_request(
+            url_path, tr_id=None, params=params, auth=False, hash=False)
         body = to_namedtuple("body", r.body)
 
         self.token = AccessToken(body)
@@ -263,7 +262,8 @@ class Api:
         hash key 값을 가져온다. 
         """
         url_path = "/uapi/hashkey"
-        r = self._send_post_request(url_path, tr_id=None, params=params, auth=False, hash=False)
+        r = self._send_post_request(
+            url_path, tr_id=None, params=params, auth=False, hash=False)
 
         return r.body["HASH"]
 
@@ -428,9 +428,8 @@ class Api:
 
     # 잔고 조회------------
 
-
-
     # 매매-----------------
+
     def _send_kr_stock_order(self, ticker: str, order_amount: int, price: int, buy: bool) -> Json:
         """
         국내 주식 매매(현금)
@@ -455,7 +454,8 @@ class Api:
             "ALGO_NO": ""
         }
 
-        r = self._send_post_request(url_path, tr_id=tr_id, params=params, auth=True, hash=True)
+        r = self._send_post_request(
+            url_path, tr_id=tr_id, params=params, auth=True, hash=True)
         return r.outputs[0]
 
     def buy_kr_stock(self, ticker: str, order_amount: int, price: int) -> Json:
@@ -478,10 +478,6 @@ class Api:
 
     # 매매-----------------
 
-
-
-
-
     # HTTTP----------------
 
     def _adjust_tr_id(self, tr_id: str) -> str:
@@ -497,14 +493,16 @@ class Api:
         """
         HTTP GET method로 request를 보내고 response를 반환한다. 
         """
-        url, headers = self._http_request_parameters(url_path, tr_id, auth=True, extra_header=extra_header)
+        url, headers = self._http_request_parameters(
+            url_path, tr_id, auth=True, extra_header=extra_header)
         return send_get_request(url, headers, params)
 
     def _send_post_request(self, url_path: str, tr_id: Optional[str], params: Json, auth: bool, hash: bool, extra_header: Json = dict()) -> APIResponse:
         """
         HTTP GET method로 request를 보내고 response를 반환한다. 
         """
-        url, headers = self._http_request_parameters(url_path, tr_id, auth=auth, extra_header=extra_header)
+        url, headers = self._http_request_parameters(
+            url_path, tr_id, auth=auth, extra_header=extra_header)
         if hash:
             self.set_hash_key(headers, params)
         return send_post_request(url, headers, params)
@@ -524,14 +522,14 @@ class Api:
 
         if tr_id is not None:
             headers.append({"tr_id": tr_id})
-                
+
         if auth:
             if self.need_auth():
                 self.auth()
             headers.append({
                 "authorization": self.token.value,
             })
-        
+
         headers.append(extra_header)
 
         headers = merge_json(headers)
