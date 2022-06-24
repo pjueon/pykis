@@ -271,11 +271,7 @@ class Api:
         """
         사용자의 api key 데이터를 반환한다.
         """
-        key_data = {
-            "appkey": self.key["appkey"],
-            "appsecret": self.key["appsecret"]
-        }
-        return key_data
+        return self.key
 
     # 인증-----------------
 
