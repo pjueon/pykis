@@ -1,24 +1,28 @@
 # pykis
-- pykis는 한국투자증권의 신규 Open Trading API를 쉽게 사용하기 위한 python 패키지입니다.  
-  - 기존의 eFriend expert를 사용하던 방식과 달리 Web API 방식 사용 
+- pykis는 한국투자증권에서 제공하는 Open Trading API를 쉽게 사용하기 위한 **비공식** python wrapper입니다. 
+- 기존 eFriend expert (HTS 프로그램) 연동 방식 API 대비 특징 
+  - Web API 방식 사용 
   - 별도의 HTS 프로그램에 의존하지 않음
   - 사용 가능 환경(OS)에 제한이 없음
 
-- 구 eFriend expert를 사용하는 방식의 python 패키지는 [pjueon/eFriendPy](https://github.com/pjueon/eFriendPy) 참고하세요.
+- 기존 eFriend expert 연동 방식 API를 사용하는 python 패키지는 [pjueon/eFriendPy](https://github.com/pjueon/eFriendPy)를 참고하세요.
 
 
 ## 사용전 유의사항 
 ### license 관련
-- pykis는 한국투자증권에서 제공하는 Open Trading API에 대한 **비공식** python wrapper입니다. 
-- pykis는 Apache-2.0 license를 따릅니다. 
-  - pykis의 동작에는 불완전한 부분이나 버그가 있을 수 있습니다. 또한 pykis의 API는 언제든 변경될 수 있습니다.
-  - pykis의 제작자([pjueon](https://github.com/pjueon))는 이 코드에 대해서 어떤 것도 보장하지 않습니다. 코드 사용중 생긴(ex> 버그, 사용자의 실수, 투자로 인한 손실 등) **어떠한 종류의 피해에 대해서도 책임지지 않습니다.**
-- pykis는 개인 투자 용도로만 개발되었습니다. 
-- pykis는 아직 개발 단계입니다. 버그나 기능 요청 등의 feedback은 issue나 pull request를 통해 부탁드립니다. 
+pykis는 Apache-2.0 license를 따릅니다. 
+- Apache-2.0 license에서 규정하는 조건 안에서 자유롭게 수정/재배포/사용이 가능합니다. 자세한 사항은 LICENSE 파일을 참고 바랍니다.
+- pykis의 동작에는 불완전한 부분이나 버그가 있을 수 있습니다. 또한 pykis의 API는 언제든 변경될 수 있습니다.
+- pykis의 제작자([pjueon](https://github.com/pjueon))는 이 코드에 대해서 어떤 것도 보장하지 않습니다. 코드 사용중 생긴 **어떠한 종류의 피해(ex> 버그, 사용자의 실수, 투자로 인한 손실 등)에 대해서도 책임지지 않습니다.**
 
 ### KIS Developers 서비스 신청
 - pykis를 사용하기 위해서는 한국투자증권 홈페이지에서 KIS Developers 서비스 신청을 통해 API key를 발급받아야 합니다.
 - KIS Developers 서비스 신청방법은 한국투자증권의 [공식 wikidocs](https://wikidocs.net/159333)를 참고하세요.
+
+### 기타
+
+- pykis는 개인 투자 용도로만 개발되었습니다. 
+- pykis는 아직 개발 단계입니다. 버그나 기능 요청 등의 feedback은 issue나 pull request를 통해 부탁드립니다. 
 
 ## 패키지 설치 
 - pykis는 현재 개발 단계로 수정이 잦습니다. git을 통해 해당 repository를 clone하여 사용하세요.  
