@@ -47,11 +47,11 @@ class APIResponse:
 
     def __init__(self, resp: requests.Response) -> None:
         self.http_code: int = resp.status_code
-        self.header: Json = self._get_header(resp)
+        self.header: Json = self._header(resp)
         self.body: Json = resp.json()
-        self.message: str = self._get_message()
-        self.return_code: Optional[str] = self._get_return_code()
-        self.outputs: List[Json] = self._get_outputs()
+        self.message: str = self._message()
+        self.return_code: Optional[str] = self._return_code()
+        self.outputs: List[Json] = self._outputs()
 
     def is_ok(self) -> bool:
         """
@@ -72,7 +72,7 @@ class APIResponse:
         if check_return_code and self.return_code != "0" and self.return_code is not None:
             raise RuntimeError(error_message)
 
-    def _get_message(self) -> str:
+    def _message(self) -> str:
         """
         API의 response에서 응답 메시지를 찾아서 반환한다. 없는 경우 빈 문자열을 반환.
         """
@@ -84,13 +84,13 @@ class APIResponse:
 
         return ""
 
-    def _get_return_code(self) -> Optional[str]:
+    def _return_code(self) -> Optional[str]:
         """
         API에서 성공/실패를 나타내는 return code를 찾아서 반환한다. 없는 경우 None을 반환
         """
         return self.body.get("rt_cd", None)
 
-    def _get_outputs(self) -> List[Json]:
+    def _outputs(self) -> List[Json]:
         """
         API의 output 값(ex> output, output1, output2)들을 list로 가져온다.
         뒤에 붙은 번호 순서대로(output이 있는 경우 제일 앞) 배치한다.
@@ -101,7 +101,7 @@ class APIResponse:
 
         return ret
 
-    def _get_header(self, resp: requests.Response) -> Json:
+    def _header(self, resp: requests.Response) -> Json:
         """
         API의 response에서 header 정보를 찾아서 반환한다.
         """
@@ -183,7 +183,7 @@ class DomainInfo:
 
     def __init__(self, kind: Optional[str] = None, url: Optional[str] = None) -> None:
         self.kind = kind
-        self.base_url = self._get_base_url(url)
+        self.base_url = self._base_url(url)
 
     def get_url(self, url_path: str):
         """
@@ -192,7 +192,7 @@ class DomainInfo:
         separator = "" if url_path.startswith("/") else "/"
         return f"{self.base_url}{separator}{url_path}"
 
-    def _get_base_url(self, input_url: Optional[str]) -> str:
+    def _base_url(self, input_url: Optional[str]) -> str:
         """
         domain 정보를 나타내는 base url 반환한다. 잘못된 입력의 경우 예외를 던진다.
         """
@@ -221,7 +221,7 @@ class AccessToken:  # pylint: disable=too-few-public-methods
 
     def __init__(self, resp: NamedTuple) -> None:
         self.value: str = f"Bearer {str(resp.access_token)}"
-        self.valid_until: datetime = self._get_valid_until(resp)
+        self.valid_until: datetime = self._valid_until(resp)
 
     def is_valid(self) -> bool:
         """
@@ -229,7 +229,7 @@ class AccessToken:  # pylint: disable=too-few-public-methods
         """
         return datetime.now() < self.valid_until
 
-    def _get_valid_until(self, resp: NamedTuple) -> datetime:
+    def _valid_until(self, resp: NamedTuple) -> datetime:
         """
         현재 시각 기준으로 access token의 유효기한을 반환한다.
         """
