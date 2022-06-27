@@ -202,7 +202,7 @@ class DomainInfo:
         return self.kind == "real"
 
 
-class AccessToken:
+class AccessToken:  # pylint: disable=too-few-public-methods
     """
     인증용 토큰 정보를 담을 클래스
     """
