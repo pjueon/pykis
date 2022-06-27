@@ -1,3 +1,7 @@
+"""
+pykist 패키지의 public api 모음
+"""
+
 # Copyright 2022 Jueon Park
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +29,10 @@ Json = Dict[str, Any]
 
 
 class APIResponse:
+    """
+    API에서 반환된 응답을 나타내는 클래스
+    """
+
     def __init__(self, resp: requests.Response) -> None:
         self.http_code: int = resp.status_code
         self.header: Json = self._get_header(resp)
@@ -35,15 +43,16 @@ class APIResponse:
 
     def is_ok(self) -> bool:
         """
-        아무런 오류가 없는 경우 True, 오류가 있는 경우 False를 반환한다. 
+        아무런 오류가 없는 경우 True, 오류가 있는 경우 False를 반환한다.
         """
         return self.http_code == 200 and (self.return_code == "0" or self.return_code is None)
 
     def raise_if_error(self, check_http_error=True, check_return_code=True) -> None:
         """
-        오류가 난 경우 예외를 던진다. 
+        오류가 난 경우 예외를 던진다.
         """
-        error_message = f"http response: {self.http_code}, return code: {self.return_code}. msg: {self.message}"
+        error_message = f"http response: {self.http_code}, " + \
+                        f"return code: {self.return_code}. msg: {self.message}"
 
         if check_http_error and self.http_code != 200:
             raise RuntimeError(error_message)
@@ -57,10 +66,11 @@ class APIResponse:
         """
         if "msg" in self.body:
             return self.body["msg"]
-        elif "msg1" in self.body:
+
+        if "msg1" in self.body:
             return self.body["msg1"]
-        else:
-            return ""
+
+        return ""
 
     def _get_return_code(self) -> Optional[str]:
         """
@@ -70,7 +80,7 @@ class APIResponse:
 
     def _get_outputs(self) -> List[Json]:
         """
-        API의 output 값(ex> output, output1, output2)들을 list로 가져온다. 
+        API의 output 값(ex> output, output1, output2)들을 list로 가져온다.
         뒤에 붙은 번호 순서대로(output이 있는 경우 제일 앞) 배치한다.
         """
         target_keys = ["output", "output1", "output2"]
@@ -81,19 +91,19 @@ class APIResponse:
 
     def _get_header(self, resp: requests.Response) -> Json:
         """
-        API의 response에서 header 정보를 찾아서 반환한다. 
+        API의 response에서 header 정보를 찾아서 반환한다.
         """
-        header = dict()
-        for x in resp.headers.keys():
-            if x.islower():
-                header[x] = resp.headers.get(x)
+        header = {}
+        for key in resp.headers.keys():
+            if key.islower():
+                header[key] = resp.headers.get(key)
         return header
 
 
 def merge_json(datas: Iterable[Json]) -> Json:
     """
-    여러개의 json 형식 데이터를 하나로 통합하여 반환한다. 
-    동일한 key가 있는 경우 뒤에 있는 원소로 덮어쓴다. 
+    여러개의 json 형식 데이터를 하나로 통합하여 반환한다.
+    동일한 key가 있는 경우 뒤에 있는 원소로 덮어쓴다.
     """
     ret = {}
     for data in datas:
@@ -112,7 +122,7 @@ def to_namedtuple(name: str, json_data: Json) -> NamedTuple:
 
 def get_base_headers() -> Json:
     """
-    api에 사용할 header의 기본 base를 반환한다.   
+    api에 사용할 header의 기본 base를 반환한다.
     """
     base = {
         "Content-Type": "application/json",
@@ -125,30 +135,40 @@ def get_base_headers() -> Json:
 
 def send_get_request(url: str, headers: Json, params: Json) -> APIResponse:
     """
-    HTTP GET method로 request를 보내고 APIResponse 객체를 반환한다. 
+    HTTP GET method로 request를 보내고 APIResponse 객체를 반환한다.
     """
     resp = requests.get(url, headers=headers, params=params)
-    r = APIResponse(resp)
-    r.raise_if_error()
+    api_resp = APIResponse(resp)
+    api_resp.raise_if_error()
 
-    return r
+    return api_resp
 
 
 def send_post_request(url: str, headers: Json, params: Json) -> APIResponse:
     """
-    HTTP POST method로 request를 보내고 APIResponse 객체를 반환한다. 
+    HTTP POST method로 request를 보내고 APIResponse 객체를 반환한다.
     """
     resp = requests.post(url, headers=headers, data=json.dumps(params))
-    r = APIResponse(resp)
-    r.raise_if_error()
+    api_resp = APIResponse(resp)
+    api_resp.raise_if_error()
 
-    return r
+    return api_resp
 
+
+def none_to_empty_dict(data: Optional[Json]) -> Json:
+    """
+    입력 값이 None인 경우에 빈 dictionary를 반환한다.
+    """
+    return data if data is not None else {}
 
 # request 관련 유틸리티------------------
 
 
 class DomainInfo:
+    """
+    도메인 정보를 나타내는 클래스. (실제 투자, 모의 투자, etc)
+    """
+
     def __init__(self, kind: Optional[str] = None, url: Optional[str] = None) -> None:
         self.kind = kind
         self.base_url = self._get_base_url(url)
@@ -166,22 +186,27 @@ class DomainInfo:
         """
         if self.kind == "real":
             return "https://openapi.koreainvestment.com:9443"
-        elif self.kind == "virtual":
+
+        if self.kind == "virtual":
             return "https://openapivts.koreainvestment.com:29443"
 
-        elif self.kind is None and input_url is not None:
+        if self.kind is None and input_url is not None:
             return input_url
-        else:
-            raise RuntimeError("invalid domain info")
+
+        raise RuntimeError("invalid domain info")
 
     def is_real(self) -> bool:
         """
-        실제 투자용 도메인 정보인지 여부를 반환한다. 
+        실제 투자용 도메인 정보인지 여부를 반환한다.
         """
         return self.kind == "real"
 
 
 class AccessToken:
+    """
+    인증용 토큰 정보를 담을 클래스
+    """
+
     def __init__(self, resp: NamedTuple) -> None:
         self.value: str = f"Bearer {str(resp.access_token)}"
         self.valid_until: datetime = self._get_valid_until(resp)
@@ -202,11 +227,17 @@ class AccessToken:
 
 
 class Api:
-    def __init__(self, key_info: Json, domain_info=DomainInfo(kind="real"), account_info: Optional[Json] = None) -> None:
+    """
+    pykis의 public api를 나타내는 클래스
+    """
+
+    def __init__(self, key_info: Json, domain_info=DomainInfo(kind="real"),
+                 account_info: Optional[Json] = None) -> None:
         """
         key_info: API 사용을 위한 인증키 정보. appkey, appsecret
         domain_info: domain 정보 (실전/모의/etc)
-        account_info: 사용할 계좌 정보. { "account_code" : "[계좌번호 앞 8자리 숫자]", "product_code" : "[계좌번호 뒤 2자리 숫자]" }
+        account_info: 사용할 계좌 정보.
+                    { "account_code" : "[계좌번호 앞 8자리 숫자]", "product_code" : "[계좌번호 뒤 2자리 숫자]" }
         """
         self.key: Json = key_info
         self.domain: DomainInfo = domain_info
@@ -218,7 +249,8 @@ class Api:
     def set_account(self, account_info: Optional[Json]) -> None:
         """
         사용할 계좌 정보를 설정한다.
-        account_info: 사용할 계좌 정보. { "account_code" : "[계좌번호 앞 8자리 숫자]", "product_code" : "[계좌번호 뒤 2자리 숫자]" }
+        account_info: 사용할 계좌 정보.
+                    { "account_code" : "[계좌번호 앞 8자리 숫자]", "product_code" : "[계좌번호 뒤 2자리 숫자]" }
         """
         if account_info is not None:
             self.account = to_namedtuple("account", account_info)
@@ -238,34 +270,34 @@ class Api:
             }
         ])
 
-        r = self._send_post_request(
-            url_path, tr_id=None, params=params, auth=False, hash=False)
-        body = to_namedtuple("body", r.body)
+        response = self._send_post_request(url_path, tr_id=None,
+                                           params=params, need_auth=False, need_hash=False)
+        body = to_namedtuple("body", response.body)
 
         self.token = AccessToken(body)
 
     def need_auth(self) -> bool:
         """
-        authentication이 필요한지 여부를 반환한다. 
+        authentication이 필요한지 여부를 반환한다.
         """
         return self.token is None or not self.token.is_valid()
 
     def set_hash_key(self, header: Json, param: Json) -> None:
         """
-        header에 hash key 설정한다. 
+        header에 hash key 설정한다.
         """
         hash_key = self.get_hash_key(param)
         header["hashkey"] = hash_key
 
     def get_hash_key(self, params: Json) -> str:
         """
-        hash key 값을 가져온다. 
+        hash key 값을 가져온다.
         """
         url_path = "/uapi/hashkey"
-        r = self._send_post_request(
-            url_path, tr_id=None, params=params, auth=False, hash=False)
+        response = self._send_post_request(url_path, tr_id=None,
+                                           params=params, need_auth=False, need_hash=False)
 
-        return r.body["HASH"]
+        return response.body["HASH"]
 
     def get_api_key_data(self) -> Json:
         """
@@ -278,7 +310,7 @@ class Api:
     # 시세 조회------------
     def get_kr_stock_price(self, ticker: str) -> int:
         """
-        국내 주식 현재가를 반환한다. 
+        국내 주식 현재가를 반환한다.
         ticker: 종목코드
         return: 해당 종목 현재가 (단위: 원)
         """
@@ -317,7 +349,7 @@ class Api:
         tr_id = "TTTC8908R"
 
         if self.account is None:
-            msg = f"계좌가 설정되지 않았습니다. set_account를 통해 계좌 정보를 설정해주세요."
+            msg = "계좌가 설정되지 않았습니다. set_account를 통해 계좌 정보를 설정해주세요."
             raise RuntimeError(msg)
 
         stock_code = ""
@@ -337,12 +369,16 @@ class Api:
         output = res.outputs[0]
         return int(output["ord_psbl_cash"])
 
-    def _get_kr_total_balance(self, extra_header: Json = dict(), extra_param: Json = dict()) -> APIResponse:
+    def _get_kr_total_balance(self, extra_header: Json = None,
+                              extra_param: Json = None) -> APIResponse:
         """
         국내 주식 잔고의 조회 전체 결과를 반환한다.
         """
         url_path = "/uapi/domestic-stock/v1/trading/inquire-balance"
         tr_id = "TTTC8434R"
+
+        extra_header = none_to_empty_dict(extra_header)
+        extra_param = none_to_empty_dict(extra_param)
 
         extra_header = merge_json([{"tr_cont": ""}, extra_header])
 
@@ -388,8 +424,8 @@ class Api:
         outputs = []
 
         # 초기값
-        extra_header = dict()
-        extra_param = dict()
+        extra_header = {}
+        extra_param = {}
 
         for i in range(max_count):
             if i > 0:
@@ -399,8 +435,8 @@ class Api:
                 extra_header=extra_header,
                 extra_param=extra_param
             )
-            df = to_dataframe(res.outputs[0])
-            outputs.append(df)
+            output = to_dataframe(res.outputs[0])
+            outputs.append(output)
 
             response_tr_cont = res.header["tr_cont"]
             no_more_data = response_tr_cont not in ["F", "M"]
@@ -450,9 +486,9 @@ class Api:
             "ALGO_NO": ""
         }
 
-        r = self._send_post_request(
-            url_path, tr_id=tr_id, params=params, auth=True, hash=True)
-        return r.outputs[0]
+        response = self._send_post_request(url_path, tr_id=tr_id,
+                                           params=params, need_auth=True, need_hash=True)
+        return response.outputs[0]
 
     def buy_kr_stock(self, ticker: str, order_amount: int, price: int) -> Json:
         """
@@ -485,28 +521,38 @@ class Api:
                 return "V" + tr_id[1:]
         return tr_id
 
-    def _send_get_request(self, url_path: str, tr_id: str, params: Json, extra_header: Json = dict()) -> APIResponse:
+    def _send_get_request(self, url_path: str, tr_id: str,
+                          params: Json, extra_header: Json = None) -> APIResponse:
         """
-        HTTP GET method로 request를 보내고 response를 반환한다. 
+        HTTP GET method로 request를 보내고 response를 반환한다.
         """
+        extra_header = none_to_empty_dict(extra_header)
+
         url, headers = self._http_request_parameters(
-            url_path, tr_id, auth=True, extra_header=extra_header)
+            url_path, tr_id, need_auth=True, extra_header=extra_header)
         return send_get_request(url, headers, params)
 
-    def _send_post_request(self, url_path: str, tr_id: Optional[str], params: Json, auth: bool, hash: bool, extra_header: Json = dict()) -> APIResponse:
+    def _send_post_request(self, url_path: str, tr_id: Optional[str], params: Json,
+                           need_auth: bool, need_hash: bool,
+                           extra_header: Json = None) -> APIResponse:
         """
-        HTTP GET method로 request를 보내고 response를 반환한다. 
+        HTTP GET method로 request를 보내고 response를 반환한다.
         """
-        url, headers = self._http_request_parameters(
-            url_path, tr_id, auth=auth, extra_header=extra_header)
-        if hash:
+        extra_header = none_to_empty_dict(extra_header)
+
+        url, headers = self._http_request_parameters(url_path, tr_id,
+                                                     need_auth=need_auth, extra_header=extra_header)
+        if need_hash:
             self.set_hash_key(headers, params)
         return send_post_request(url, headers, params)
 
-    def _http_request_parameters(self, url_path: str, tr_id: Optional[str], auth: bool, extra_header: Json = dict()) -> Tuple[str, Json]:
+    def _http_request_parameters(self, url_path: str, tr_id: Optional[str],
+                                 need_auth: bool, extra_header: Json = None) -> Tuple[str, Json]:
         """
-        http request용 파라미터를 튜플로 반환한다. 
+        http request용 파라미터를 튜플로 반환한다.
         """
+        extra_header = none_to_empty_dict(extra_header)
+
         url = self.domain.get_url(url_path)
 
         tr_id = self._adjust_tr_id(tr_id)
@@ -519,7 +565,7 @@ class Api:
         if tr_id is not None:
             headers.append({"tr_id": tr_id})
 
-        if auth:
+        if need_auth:
             if self.need_auth():
                 self.auth()
             headers.append({
