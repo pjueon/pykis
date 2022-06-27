@@ -521,19 +521,20 @@ class Api:
                 return "V" + tr_id[1:]
         return tr_id
 
-    def _send_get_request(self, url_path: str, tr_id: str,
-                          params: Json, extra_header: Json = None) -> APIResponse:
+    def _send_get_request(self, url_path: str, tr_id: str, params: Json,
+                          need_auth: bool = True,
+                          extra_header: Json = None) -> APIResponse:
         """
         HTTP GET method로 request를 보내고 response를 반환한다.
         """
         extra_header = none_to_empty_dict(extra_header)
 
-        url, headers = self._http_request_parameters(
-            url_path, tr_id, need_auth=True, extra_header=extra_header)
+        url, headers = self._http_request_parameters(url_path, tr_id,
+                                                     need_auth=need_auth, extra_header=extra_header)
         return send_get_request(url, headers, params)
 
     def _send_post_request(self, url_path: str, tr_id: Optional[str], params: Json,
-                           need_auth: bool, need_hash: bool,
+                           need_auth: bool = True, need_hash: bool = False,
                            extra_header: Json = None) -> APIResponse:
         """
         HTTP GET method로 request를 보내고 response를 반환한다.
