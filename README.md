@@ -32,7 +32,7 @@ git clone https://github.com/pjueon/pykis.git
 - 추후 pip 를 통해 설치할 수 있도록 정식 패키징 예정입니다. 
 
 
-## API 기본 
+## API 기본 사용법 
 ### 패키지 import 
 ```python
 import pykis
@@ -52,8 +52,8 @@ keys = {
 	},
 	"account_info" :    # 사용할 계좌 정보
 	{
-		"account_code": "[API를 신청한 계좌번호 앞자리 8자리 숫자]",   
-		"product_code": "[사용할 계좌의 끝자리 2자리 숫자]"             # ex> "01", "22", etc
+		"account_code": "[API를 신청한 종합 계좌번호(계좌번호 앞자리 8자리 숫자)]",   
+		"product_code": "[계좌번호의 끝자리 2자리 숫자]"             # ex> "01", "22", etc
 	}
 }
 
@@ -67,14 +67,14 @@ domain = pykis.DomainInfo(kind="virtual")
 
 
 # API 객체 생성 
-api = pykis.Api(key_info=keys["key_info"], domain_info=domain,account_info=keys["account_info"])
+api = pykis.Api(key_info=keys["key_info"], domain_info=domain, account_info=keys["account_info"])
 ```
 
 ### 사용 계좌 변경
 ```python
 account_info = {    # 사용할 계좌 정보
-	"account_code": "[API를 신청한 계좌번호 앞자리 8자리 숫자]",   
-	"product_code": "[사용할 계좌의 끝자리 2자리 숫자]"             # ex> "01", "22", etc
+	"account_code": "[API를 신청한 종합 계좌번호(계좌번호 앞자리 8자리 숫자)]",   
+	"product_code": "[계좌번호의 끝자리 2자리 숫자]"             # ex> "01", "22", etc
 }
 
 api.set_account(account_info)
@@ -103,7 +103,7 @@ print(f"보유중인 국내 주식: \n{stock}")
 ### 국내 주식 총 예수금 조회 
 ```python
 deposit = api.get_kr_deposit()
-print(f"총 예수금: {deposit}")
+print(f"총 예수금: {deposit} 원")
 ```
 
 ### 국내 주식 매수 주문
