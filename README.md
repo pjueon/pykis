@@ -1,10 +1,10 @@
 # pykis
 - pykis는 한국투자증권의 신규 Open Trading API를 쉽게 사용하기 위한 python 패키지입니다.  
-  - 기존의 eFriend expert를 사용하던 방식과 달리 Web API 방식
+  - 기존의 eFriend expert를 사용하던 방식과 달리 Web API 방식 사용 
   - 별도의 HTS 프로그램에 의존하지 않음
   - 사용 가능 환경(OS)에 제한이 없음
 
-- 구 eFriend expert를 사용하는 방식의 패키지는 [pjueon/eFriendPy](https://github.com/pjueon/eFriendPy) 참고하세요.
+- 구 eFriend expert를 사용하는 방식의 python 패키지는 [pjueon/eFriendPy](https://github.com/pjueon/eFriendPy) 참고하세요.
 
 
 ## 사용전 유의사항 
