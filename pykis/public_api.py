@@ -25,6 +25,7 @@ import pandas as pd
 
 Json = Dict[str, Any]
 
+
 # request 관련 유틸리티------------------
 
 
@@ -35,8 +36,8 @@ class APIRequestParameter(NamedTuple):
     url_path: str
     tr_id: Optional[str]
     params: Json
-    need_auth: bool = True
-    need_hash: bool = False
+    requires_authentication: bool = True
+    requires_hash: bool = False
     extra_header: Optional[Json] = None
 
 
@@ -219,29 +220,47 @@ class DomainInfo:
         """
         return self.kind == "virtual"
 
+    def adjust_tr_id(self, tr_id: Optional[str]) -> str:
+        """
+        모의 투자인 경우, tr_id를 필요에 따라 변경한다.
+        """
+        if tr_id is not None and self.is_virtual():
+            if len(tr_id) >= 1 and tr_id[0] in ["T", "J", "C"]:
+                return "V" + tr_id[1:]
+        return tr_id
 
-class AccessToken:  # pylint: disable=too-few-public-methods
+
+class AccessToken:
     """
     인증용 토큰 정보를 담을 클래스
     """
 
-    def __init__(self, resp: NamedTuple) -> None:
+    def __init__(self) -> None:
+        self.value: Optional[str] = None
+        self.valid_until: Optional[datetime] = None
+
+    def create(self, resp: NamedTuple) -> None:
+        """
+        Token을 생성한다.
+        """
         self.value: str = f"Bearer {str(resp.access_token)}"
         self.valid_until: datetime = self._valid_until(resp)
 
-    def is_valid(self) -> bool:
-        """
-        access token이 유효한지 검사한다.
-        """
-        return datetime.now() < self.valid_until
-
     def _valid_until(self, resp: NamedTuple) -> datetime:
         """
-        현재 시각 기준으로 access token의 유효기한을 반환한다.
+        현재 시각 기준으로 Token의 유효기한을 반환한다.
         """
         time_margin = 60
         duration = int(resp.expires_in) - time_margin
         return datetime.now() + timedelta(seconds=duration)
+
+    def is_valid(self) -> bool:
+        """
+        Token이 유효한지 검사한다.
+        """
+        return self.value is not None and \
+            self.valid_until is not None and \
+            datetime.now() < self.valid_until
 
 
 class Api:
@@ -259,7 +278,7 @@ class Api:
         """
         self.key: Json = key_info
         self.domain: DomainInfo = domain_info
-        self.token: Optional[AccessToken] = None
+        self.token: AccessToken = AccessToken()
         self.account: Optional[NamedTuple] = None
 
         self.set_account(account_info)
@@ -275,7 +294,7 @@ class Api:
 
     # 인증-----------------
 
-    def auth(self) -> None:
+    def create_token(self) -> None:
         """
         access token을 발급한다.
         """
@@ -289,17 +308,17 @@ class Api:
         ])
 
         req = APIRequestParameter(url_path, tr_id=None,
-                                  params=params, need_auth=False, need_hash=False)
+                                  params=params, requires_authentication=False, requires_hash=False)
         response = self._send_post_request(req)
         body = to_namedtuple("body", response.body)
 
-        self.token = AccessToken(body)
+        self.token.create(body)
 
-    def need_auth(self) -> bool:
+    def need_authentication(self) -> bool:
         """
         authentication이 필요한지 여부를 반환한다.
         """
-        return self.token is None or not self.token.is_valid()
+        return not self.token.is_valid()
 
     def set_hash_key(self, header: Json, param: Json) -> None:
         """
@@ -314,7 +333,7 @@ class Api:
         """
         url_path = "/uapi/hashkey"
         req = APIRequestParameter(url_path, tr_id=None,
-                                  params=params, need_auth=False, need_hash=False)
+                                  params=params, requires_authentication=False, requires_hash=False)
         response = self._send_post_request(req)
 
         return response.body["HASH"]
@@ -510,7 +529,7 @@ class Api:
         }
 
         req = APIRequestParameter(url_path, tr_id=tr_id,
-                                  params=params, need_auth=True, need_hash=True)
+                                  params=params, requires_authentication=True, requires_hash=True)
 
         response = self._send_post_request(req)
         return response.outputs[0]
@@ -537,61 +556,53 @@ class Api:
 
     # HTTTP----------------
 
-    def _adjust_tr_id(self, tr_id: str) -> str:
-        """
-        모의 투자인 경우, tr_id를 필요에 따라 변경한다.
-        """
-        if self.domain.is_virtual():
-            if len(tr_id) >= 1 and tr_id[0] in ["T", "J", "C"]:
-                return "V" + tr_id[1:]
-        return tr_id
-
     def _send_get_request(self, req: APIRequestParameter) -> APIResponse:
         """
         HTTP GET method로 request를 보내고 response를 반환한다.
         """
-        url, headers = self._parse_url_and_headers(req)
+        url = self.domain.get_url(req.url_path)
+        headers = self._parse_headers(req)
         return send_get_request(url, headers, req.params)
 
     def _send_post_request(self, req: APIRequestParameter) -> APIResponse:
         """
         HTTP GET method로 request를 보내고 response를 반환한다.
         """
-        url, headers = self._parse_url_and_headers(req)
+        url = self.domain.get_url(req.url_path)
+        headers = self._parse_headers(req)
 
-        if req.need_hash:
+        if req.requires_hash:
             self.set_hash_key(headers, req.params)
         return send_post_request(url, headers, req.params)
 
-    def _parse_url_and_headers(self, req: APIRequestParameter) -> Tuple[str, Json]:
+    def _parse_headers(self, req: APIRequestParameter) -> Tuple[str, Json]:
         """
-        API에 request에 필요한 url과 header를 구해서 튜플로 반환한다.
+        API에 request에 필요한 header를 구해서 튜플로 반환한다.
         """
-        extra_header = none_to_empty_dict(req.extra_header)
-
-        url = self.domain.get_url(req.url_path)
-
-        tr_id = self._adjust_tr_id(req.tr_id)
 
         headers = [
             get_base_headers(),
             self.get_api_key_data(),
         ]
 
+        tr_id = self.domain.adjust_tr_id(req.tr_id)
+
         if tr_id is not None:
             headers.append({"tr_id": tr_id})
 
-        if req.need_auth:
-            if self.need_auth():
-                self.auth()
+        if req.requires_authentication:
+            if self.need_authentication():
+                self.create_token()
+
             headers.append({
                 "authorization": self.token.value,
             })
 
+        extra_header = none_to_empty_dict(req.extra_header)
         headers.append(extra_header)
 
         headers = merge_json(headers)
 
-        return url, headers
+        return headers
 
     # HTTTP----------------
