@@ -213,6 +213,12 @@ class DomainInfo:
         """
         return self.kind == "real"
 
+    def is_virtual(self) -> bool:
+        """
+        모의 투자용 도메인 정보인지 여부를 반환한다.
+        """
+        return self.kind == "virtual"
+
 
 class AccessToken:  # pylint: disable=too-few-public-methods
     """
@@ -243,7 +249,7 @@ class Api:
     pykis의 public api를 나타내는 클래스
     """
 
-    def __init__(self, key_info: Json, domain_info=DomainInfo(kind="real"),
+    def __init__(self, key_info: Json, domain_info: DomainInfo = DomainInfo(kind="real"),
                  account_info: Optional[Json] = None) -> None:
         """
         key_info: API 사용을 위한 인증키 정보. appkey, appsecret
@@ -413,8 +419,8 @@ class Api:
         }
 
         params = merge_json([params, extra_param])
-        req = APIRequestParameter(
-            url_path, tr_id, params, extra_header=extra_header)
+        req = APIRequestParameter(url_path, tr_id, params,
+                                  extra_header=extra_header)
         return self._send_get_request(req)
 
     def get_kr_stock_balance(self) -> pd.DataFrame:
@@ -535,7 +541,7 @@ class Api:
         """
         모의 투자인 경우, tr_id를 필요에 따라 변경한다.
         """
-        if not self.domain.is_real():
+        if self.domain.is_virtual():
             if len(tr_id) >= 1 and tr_id[0] in ["T", "J", "C"]:
                 return "V" + tr_id[1:]
         return tr_id
