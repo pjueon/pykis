@@ -28,6 +28,8 @@ pykis는 Apache-2.0 license를 따릅니다.
 - pykis는 현재 개발 단계로 수정이 잦습니다. git을 통해 해당 repository를 clone하여 사용하세요.  
 ```shell
 git clone https://github.com/pjueon/pykis.git
+cd pykis
+pip3 install -r requirements.txt
 ```
 - 추후 pip 를 통해 설치할 수 있도록 정식 패키징 예정입니다. 
 
