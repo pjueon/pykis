@@ -18,7 +18,7 @@ pykist 패키지의 public api 모음
 
 from datetime import datetime, timedelta
 from collections import namedtuple
-from typing import NamedTuple, Optional, Dict, Iterable, Any, List, Tuple
+from typing import NamedTuple, Optional, Dict, Iterable, Any, List, Tuple, Callable
 import json
 import requests
 import pandas as pd
@@ -410,6 +410,41 @@ class Api:
         output = res.outputs[0]
         return int(output["ord_psbl_cash"])
 
+    def _send_continuous_query(self, request_function: Callable[[Json, Json], APIResponse],
+                               to_dataframe:
+                               Callable[[APIResponse], pd.DataFrame]) -> pd.DataFrame:
+        """
+        조회 결과가 100건 이상 존재하는 경우 연속하여 query 후 전체 결과를 DataFrame으로 통합하여 반환한다.
+        """
+        max_count = 100
+        outputs = []
+
+        # 초기값
+        extra_header = {}
+        extra_param = {}
+
+        for i in range(max_count):
+            if i > 0:
+                extra_header = {"tr_cont": "N"}    # 공백 : 초기 조회, N : 다음 데이터 조회
+
+            res = request_function(
+                extra_header=extra_header,
+                extra_param=extra_param
+            )
+            output = to_dataframe(res)
+            outputs.append(output)
+
+            response_tr_cont = res.header["tr_cont"]
+            no_more_data = response_tr_cont not in ["F", "M"]
+
+            if no_more_data:
+                break
+
+            extra_param["CTX_AREA_FK100"] = res.body["ctx_area_fk100"]
+            extra_param["CTX_AREA_NK100"] = res.body["ctx_area_nk100"]
+
+        return pd.concat(outputs)
+
     def _get_kr_total_balance(self, extra_header: Json = None,
                               extra_param: Json = None) -> APIResponse:
         """
@@ -448,8 +483,8 @@ class Api:
         return: 국내 주식 잔고 정보를 DataFrame으로 반환
         """
 
-        def to_dataframe(output: Json) -> pd.DataFrame:
-            tdf = pd.DataFrame(output)
+        def to_dataframe(res: APIResponse) -> pd.DataFrame:
+            tdf = pd.DataFrame(res.outputs[0])
             if tdf.empty:
                 return tdf
 
@@ -462,34 +497,7 @@ class Api:
             ren_dict = dict(zip(cf1, cf2))
             return tdf.rename(columns=ren_dict)
 
-        max_count = 100
-        outputs = []
-
-        # 초기값
-        extra_header = {}
-        extra_param = {}
-
-        for i in range(max_count):
-            if i > 0:
-                extra_header = {"tr_cont": "N"}    # 공백 : 초기 조회, N : 다음 데이터 조회
-
-            res = self._get_kr_total_balance(
-                extra_header=extra_header,
-                extra_param=extra_param
-            )
-            output = to_dataframe(res.outputs[0])
-            outputs.append(output)
-
-            response_tr_cont = res.header["tr_cont"]
-            no_more_data = response_tr_cont not in ["F", "M"]
-
-            if no_more_data:
-                break
-
-            extra_param["CTX_AREA_FK100"] = res.body["ctx_area_fk100"]
-            extra_param["CTX_AREA_NK100"] = res.body["ctx_area_nk100"]
-
-        return pd.concat(outputs)
+        return self._send_continuous_query(self._get_kr_total_balance, to_dataframe)
 
     def get_kr_deposit(self) -> int:
         """
@@ -499,8 +507,60 @@ class Api:
 
         output2 = res.outputs[1]
         return int(output2[0]["dnca_tot_amt"])
-
     # 잔고 조회------------
+
+    # 주문 조회------------
+    def _get_kr_stock_orders_once(self, extra_header: Json = None,
+                                  extra_param: Json = None) -> APIResponse:
+        """
+        취소/정정 가능한 국내 주식 주문 목록을 반환한다.
+        한번만 실행.
+        """
+        url_path = "/uapi/domestic-stock/v1/trading/inquire-psbl-rvsecncl"
+        tr_id = "TTTC8036R"
+
+        extra_header = none_to_empty_dict(extra_header)
+        extra_param = none_to_empty_dict(extra_param)
+
+        extra_header = merge_json([{"tr_cont": ""}, extra_header])
+
+        params = {
+            "CANO": self.account.account_code,
+            "ACNT_PRDT_CD": self.account.product_code,
+            "CTX_AREA_FK100": "",
+            "CTX_AREA_NK100": "",
+            "INQR_DVSN_1": "0",
+            "INQR_DVSN_2": "0"
+        }
+
+        params = merge_json([params, extra_param])
+        req = APIRequestParameter(url_path, tr_id, params,
+                                  extra_header=extra_header)
+        res = self._send_get_request(req)
+
+        return res
+
+    def get_kr_stock_orders(self) -> pd.DataFrame:
+        """
+        취소/정정 가능한 국내 주식 주문 목록을 DataFrame으로 반환한다.
+        """
+        def to_dataframe(res: APIResponse) -> pd.DataFrame:
+            tdf = pd.DataFrame(res.outputs[0])
+            if tdf.empty:
+                return tdf
+
+            tdf.set_index("odno", inplace=True)
+            cf1 = ["pdno", "ord_qty", "ord_unpr",
+                   "ord_tmd", "ord_gno_brno", "orgn_odno"]
+            cf2 = ["종목코드", "주문수량", "주문가격", "시간", "주문점", "원번호"]
+            tdf = tdf[cf1]
+            ren_dict = dict(zip(cf1, cf2))
+
+            return tdf.rename(columns=ren_dict)
+
+        return self._send_continuous_query(self._get_kr_stock_orders_once, to_dataframe)
+
+    # 주문 조회------------
 
     # 매매-----------------
 

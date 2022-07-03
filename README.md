@@ -132,6 +132,12 @@ ret = api.sell_kr_stock(ticker, 1, price=price)
 print(ret)
 ```
 
+### 정정/취소 가능한 국내 주식 주문 조회
+```python
+# 정정/취소 가능한 국내 주식 주문을 DataFrame으로 반환
+orders = api.get_kr_stock_orders()
+print(orders)
+```
 
 ## 관련 참고 자료
 - [한국투자증권 KIS Developers](https://apiportal.koreainvestment.com)
