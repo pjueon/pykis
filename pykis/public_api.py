@@ -683,6 +683,19 @@ class Api:
             self.cancel_kr_order(order, amount, price, branch)
             time.sleep(delay)
 
+    def revise_kr_order(self, order_no: str, order_amount: int,   # pylint: disable=too-many-arguments
+                        order_price: int,
+                        order_branch: str = "06010",
+                        qty_all_yn: str = "Y") -> APIResponse:
+        """
+        국내 주식 주문을 정정한다.
+        """
+        return self._revise_cancel_kr_orders(order_no=order_no,
+                                             order_amount=order_amount,
+                                             order_price=order_price,
+                                             order_branch=order_branch,
+                                             is_cancel=False,
+                                             qty_all_yn=qty_all_yn)
     # 정정/취소-------------
 
     # HTTTP----------------
