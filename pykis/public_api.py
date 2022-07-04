@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 from collections import namedtuple
 from typing import NamedTuple, Optional, Dict, Iterable, Any, List, Tuple, Callable
 import json
+import time
 import requests
 import pandas as pd
 
@@ -613,6 +614,76 @@ class Api:
         return self._send_kr_stock_order(ticker, order_amount, price, False)
 
     # 매매-----------------
+
+    # 정정/취소-------------
+    def _revise_cancel_kr_orders(self,  # pylint: disable=too-many-arguments
+                                 order_no: str,
+                                 order_branch: str,
+                                 order_amount: int,
+                                 order_price: int,
+                                 is_cancel: bool,
+                                 qty_all_yn: str = "Y") -> APIResponse:
+        """
+        국내 주식 주문을 정정 또는 취소한다
+        order_no: 주문 번호
+        order_branch: 주문점(통상 06010)
+        order_amount: 주문수량
+        order_price: 주문가격
+        cncl_dv: 정정구분(취소-02, 정정-01)
+        qty_all_yn: 잔량전부주문여부(Y-잔량전부, N-잔량일부)
+        """
+        url_path = "/uapi/domestic-stock/v1/trading/order-rvsecncl"
+        tr_id = "TTTC0803U"
+
+        order_dv: str = "00"  # order_dv: 주문유형(00-지정가)
+        cancel_dv: str = "02" if is_cancel else "01"
+
+        params = {
+            "CANO": self.account.account_code,
+            "ACNT_PRDT_CD": self.account.product_code,
+            "KRX_FWDG_ORD_ORGNO": order_branch,
+            "ORGN_ODNO": order_no,
+            "ORD_DVSN": order_dv,
+            "RVSE_CNCL_DVSN_CD": cancel_dv,
+            "ORD_QTY": str(order_amount),
+            "ORD_UNPR": str(order_price),
+            "QTY_ALL_ORD_YN": qty_all_yn
+        }
+
+        req = APIRequestParameter(url_path, tr_id=tr_id,
+                                  params=params, requires_authentication=True, requires_hash=True)
+
+        return self._send_post_request(req)
+
+    def cancel_kr_order(self, order_no: str, order_amount: int,
+                        order_branch: str = "06010",
+                        qty_all_yn: str = "Y") -> APIResponse:
+        """
+        국내 주식 주문을 취소한다.
+        """
+        return self._revise_cancel_kr_orders(order_no=order_no,
+                                             order_amount=order_amount,
+                                             order_price=1,
+                                             order_branch=order_branch,
+                                             is_cancel=True,
+                                             qty_all_yn=qty_all_yn)
+
+    def cancel_all_kr_orders(self) -> None:
+        """
+        미체결된 모든 국내 주식 주문들을 취소한다.
+        """
+        data = self.get_kr_stock_orders()
+        orders = data.index.to_list()
+        amounts = data["주문수량"].to_list()
+        prices = data["주문가격"].to_list()
+        branchs = data["주문점"].to_list()
+        delay = 0.2  # sec
+
+        for order, amount, price, branch in zip(orders, amounts, prices, branchs):
+            self.cancel_kr_order(order, amount, price, branch)
+            time.sleep(delay)
+
+    # 정정/취소-------------
 
     # HTTTP----------------
 
