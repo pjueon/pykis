@@ -422,9 +422,12 @@ class Api:
         if not res.is_ok() or len(res.outputs) == 0 or len(res.outputs[0]) == 0:
             return pd.DataFrame()
 
+        date_column = ["Date"]
+        other_colums = ["Open", "High", "Low", "Close", "Volume"]
+
         keys = ["stck_bsop_date", "stck_oprc",
                 "stck_hgpr", "stck_lwpr", "stck_clpr", "acml_vol"]
-        values = ["Date", "Open", "High", "Low", "Close", "Volume"]
+        values = date_column + other_colums
 
         data = pd.DataFrame(res.outputs[0])
 
@@ -432,9 +435,9 @@ class Api:
         rename_map = dict(zip(keys, values))
 
         data.rename(columns=rename_map, inplace=True)
-        data[["Date"]] = data[["Date"]].apply(pd.to_datetime)
-        data[["Open", "High", "Low", "Close", "Volume"]] = data[[
-            "Open", "High", "Low", "Close", "Volume"]].apply(pd.to_numeric)
+
+        data[date_column] = data[date_column].apply(pd.to_datetime)
+        data[other_colums] = data[other_colums].apply(pd.to_numeric)
         data.set_index("Date", inplace=True)
 
         return data
