@@ -546,18 +546,18 @@ class Api:
         취소/정정 가능한 국내 주식 주문 목록을 DataFrame으로 반환한다.
         """
         def to_dataframe(res: APIResponse) -> pd.DataFrame:
-            tdf = pd.DataFrame(res.outputs[0])
-            if tdf.empty:
-                return tdf
+            data = pd.DataFrame(res.outputs[0])
+            if data.empty:
+                return data
 
-            tdf.set_index("odno", inplace=True)
-            cf1 = ["pdno", "ord_qty", "ord_unpr",
+            data.set_index("odno", inplace=True)
+            keys = ["pdno", "ord_qty", "ord_unpr",
                    "ord_tmd", "ord_gno_brno", "orgn_odno"]
-            cf2 = ["종목코드", "주문수량", "주문가격", "시간", "주문점", "원번호"]
-            tdf = tdf[cf1]
-            ren_dict = dict(zip(cf1, cf2))
+            values = ["종목코드", "주문수량", "주문가격", "시간", "주문점", "원번호"]
+            data = data[keys]
+            rename_map = dict(zip(keys, values))
 
-            return tdf.rename(columns=ren_dict)
+            return data.rename(columns=rename_map)
 
         return self._send_continuous_query(self._get_kr_orders_once, to_dataframe)
 
