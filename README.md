@@ -46,21 +46,19 @@ import pykis
 # API 사용을 위한 API key정보 및 계좌 정보를 설정합니다. 
 # 별도의 파일(json, yaml, xml, etc) 등에 내용을 저장하여 불러오는 것을 추천합니다. 
 # key 정보는 절대 외부로 유출되지 않도록 주의하시고, 유출시 즉시 재발급 하시기 바랍니다.  
-keys = {                
-	"key_info":         # KIS Developers 서비스 신청을 통해 발급받은 API key 정보
-	{
-		"appkey": "[발급 받은 APP Key]",                  
-		"appsecret": "[발급 받은 APP Secret]" 
-	},
-	"account_info" :    # 사용할 계좌 정보
-	{
-		"account_code": "[API를 신청한 종합 계좌번호(계좌번호 앞자리 8자리 숫자)]",   
-		"product_code": "[계좌번호의 끝자리 2자리 숫자]"             # ex> "01", "22", etc
-	}
+
+key_info = {		# KIS Developers 서비스 신청을 통해 발급받은 API key 정보
+	"appkey": "[발급 받은 APP Key]",                  
+	"appsecret": "[발급 받은 APP Secret]" 
+}
+
+account_info = {	# 사용할 계좌 정보
+	"account_code": "[API를 신청한 종합 계좌번호(계좌번호 앞자리 8자리 숫자)]",   
+	"product_code": "[계좌번호의 끝자리 2자리 숫자]"             # ex> "01", "22", etc
 }
 
 # API 객체 생성 
-api = pykis.Api(key_info=keys["key_info"], account_info=keys["account_info"])
+api = pykis.Api(key_info=key_info, account_info=account_info)
 ```
 
 모의 계좌를 사용하는 경우 
@@ -69,7 +67,7 @@ domain = pykis.DomainInfo(kind="virtual")
 
 
 # API 객체 생성 
-api = pykis.Api(key_info=keys["key_info"], domain_info=domain, account_info=keys["account_info"])
+api = pykis.Api(key_info=key_info, account_info=account_info)
 ```
 
 ### 사용 계좌 변경
