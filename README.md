@@ -95,6 +95,15 @@ price = api.get_kr_stock_price(ticker)
 print(f"삼성전자 현재가: {price} 원")
 ```
 
+### 국내 주식 현재가 조회 (일/주/월별 OHLCV)
+```python
+ticker = "005930"   # 삼성전자 종목코드
+time_unit = "D"     # 기간 분류 코드 (D/day-일, W/week-주, M/month-월), 기본값 "D"
+ohlcv = api.api.get_kr_ohlcv(ticker, time_unit)
+
+# ohlcv 데이터는 DataFrame 형태로 반환되며, 최근 30 일/주/월 데이터로 제한됨
+```
+
 ### 국내 주식 잔고 조회 
 ```python
 # DataFrame 형태로 국내 주식 잔고 반환 

@@ -416,6 +416,7 @@ class Api:
         해당 종목코드의 과거 가격 정보를 DataFrame으로 반환한다.
         ticker: 종목 코드
         time_unit: 기간 분류 코드 (D/day-일, W/week-주, M/month-월)
+        데이터는 최근 30 일/주/월 데이터로 제한됨
         """
         res = self._get_kr_history(ticker, time_unit)
         if not res.is_ok() or len(res.outputs) == 0 or len(res.outputs[0]) == 0:
