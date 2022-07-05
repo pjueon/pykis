@@ -135,13 +135,13 @@ print(ret)
 ### 정정/취소 가능한 국내 주식 주문 조회
 ```python
 # 정정/취소 가능한 국내 주식 주문을 DataFrame으로 반환
-orders = api.get_kr_stock_orders()
+orders = api.get_kr_orders()
 print(orders)
 ```
 
 ### 국내 주식 주문 취소
 ```python
-# order_no: 주문 번호. api.get_kr_stock_orders 통해 확인 가능.
+# order_no: 주문 번호. api.cancel_kr_order 통해 확인 가능.
 api.cancel_kr_order(order_no=order_no)
 ```
 
@@ -152,7 +152,7 @@ api.cancel_all_kr_orders()
 
 ### 국내 주식 주문 정정
 ```python
-# order_no: 주문 번호. api.get_kr_stock_orders 통해 확인 가능.
+# order_no: 주문 번호. api.cancel_kr_order 통해 확인 가능.
 # order_price: 1 주당 주문 가격(정정할 가격).
 api.revise_kr_order(order_no=order_no, order_price=order_price)
 ```

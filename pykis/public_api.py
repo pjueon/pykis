@@ -511,8 +511,8 @@ class Api:
     # 잔고 조회------------
 
     # 주문 조회------------
-    def _get_kr_stock_orders_once(self, extra_header: Json = None,
-                                  extra_param: Json = None) -> APIResponse:
+    def _get_kr_orders_once(self, extra_header: Json = None,
+                            extra_param: Json = None) -> APIResponse:
         """
         취소/정정 가능한 국내 주식 주문 목록을 반환한다.
         한번만 실행.
@@ -541,7 +541,7 @@ class Api:
 
         return res
 
-    def get_kr_stock_orders(self) -> pd.DataFrame:
+    def get_kr_orders(self) -> pd.DataFrame:
         """
         취소/정정 가능한 국내 주식 주문 목록을 DataFrame으로 반환한다.
         """
@@ -559,7 +559,7 @@ class Api:
 
             return tdf.rename(columns=ren_dict)
 
-        return self._send_continuous_query(self._get_kr_stock_orders_once, to_dataframe)
+        return self._send_continuous_query(self._get_kr_orders_once, to_dataframe)
 
     # 주문 조회------------
 
@@ -672,7 +672,7 @@ class Api:
         """
         미체결된 모든 국내 주식 주문들을 취소한다.
         """
-        data = self.get_kr_stock_orders()
+        data = self.get_kr_orders()
         orders = data.index.to_list()
         amounts = data["주문수량"].to_list()
         prices = data["주문가격"].to_list()
