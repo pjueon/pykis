@@ -139,6 +139,25 @@ orders = api.get_kr_stock_orders()
 print(orders)
 ```
 
+### 국내 주식 주문 취소
+```python
+# order_no: 주문 번호. api.get_kr_stock_orders 통해 확인 가능.
+api.cancel_kr_order(order_no=order_no)
+```
+
+### 모든 미체결 국내 주식 주문 취소
+```python
+api.cancel_all_kr_orders()
+```
+
+### 국내 주식 주문 정정
+```python
+# order_no: 주문 번호. api.get_kr_stock_orders 통해 확인 가능.
+# order_price: 1 주당 주문 가격(정정할 가격).
+api.revise_kr_order(order_no=order_no, order_price=order_price)
+```
+
+
 ## 관련 참고 자료
 - [한국투자증권 KIS Developers](https://apiportal.koreainvestment.com)
 - [한국투자증권 Open Trading API Github](https://github.com/koreainvestment/open-trading-api)
