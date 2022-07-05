@@ -67,7 +67,7 @@ domain = pykis.DomainInfo(kind="virtual")
 
 
 # API 객체 생성 
-api = pykis.Api(key_info=key_info, account_info=account_info)
+api = pykis.Api(key_info=key_info, domain_info=domain_info, account_info=account_info)
 ```
 
 ### 사용 계좌 변경
