@@ -146,24 +146,29 @@ def get_base_headers() -> Json:
     return base
 
 
-def send_get_request(url: str, headers: Json, params: Json) -> APIResponse:
+def send_get_request(url: str, headers: Json, params: Json, raise_flag: bool = True) -> APIResponse:
     """
     HTTP GET method로 request를 보내고 APIResponse 객체를 반환한다.
     """
     resp = requests.get(url, headers=headers, params=params)
     api_resp = APIResponse(resp)
-    api_resp.raise_if_error()
+
+    if raise_flag:
+        api_resp.raise_if_error()
 
     return api_resp
 
 
-def send_post_request(url: str, headers: Json, params: Json) -> APIResponse:
+def send_post_request(url: str, headers: Json, params: Json,
+                      raise_flag: bool = True) -> APIResponse:
     """
     HTTP POST method로 request를 보내고 APIResponse 객체를 반환한다.
     """
     resp = requests.post(url, headers=headers, data=json.dumps(params))
     api_resp = APIResponse(resp)
-    api_resp.raise_if_error()
+
+    if raise_flag:
+        api_resp.raise_if_error()
 
     return api_resp
 
@@ -376,6 +381,63 @@ class Api:
         req = APIRequestParameter(url_path, tr_id, params)
         res = self._send_get_request(req)
         return res.outputs[0]
+
+    def _get_kr_history(self, ticker: str, time_unit: str = "D") -> APIResponse:
+        """
+        해당 종목코드의 과거 가격 조회한다.
+        ticker: 종목 코드
+        time_unit: 기간 분류 코드 (d/day-일, w/week-주, m/month-월)
+        """
+        time_unit = time_unit.upper()
+
+        if time_unit in ["DAYS", "DAY"]:
+            time_unit = "D"
+        elif time_unit in ["WEEKS", "WEEK"]:
+            time_unit = "W"
+        elif time_unit in ["MONTHS", "MONTH"]:
+            time_unit = "M"
+
+        url_path = "/uapi/domestic-stock/v1/quotations/inquire-daily-price"
+        tr_id = "FHKST01010400"
+
+        params = {
+            "FID_COND_MRKT_DIV_CODE": "J",
+            "FID_INPUT_ISCD": ticker,
+            "FID_PERIOD_DIV_CODE": time_unit,
+            "FID_ORG_ADJ_PRC": "0000000001"
+        }
+
+        req = APIRequestParameter(url_path, tr_id, params)
+
+        return self._send_get_request(req, raise_flag=False)
+
+    def get_kr_ohlcv(self, ticker: str, time_unit: str = "D") -> pd.DataFrame:
+        """
+        해당 종목코드의 과거 가격 정보를 DataFrame으로 반환한다.
+        ticker: 종목 코드
+        time_unit: 기간 분류 코드 (D/day-일, W/week-주, M/month-월)
+        데이터는 최근 30 일/주/월 데이터로 제한됨
+        """
+        res = self._get_kr_history(ticker, time_unit)
+        if not res.is_ok() or len(res.outputs) == 0 or len(res.outputs[0]) == 0:
+            return pd.DataFrame()
+
+        keys = ["stck_bsop_date", "stck_oprc",
+                "stck_hgpr", "stck_lwpr", "stck_clpr", "acml_vol"]
+        values = ["Date", "Open", "High", "Low", "Close", "Volume"]
+
+        data = pd.DataFrame(res.outputs[0])
+
+        data = data[keys]
+        rename_map = dict(zip(keys, values))
+
+        data.rename(columns=rename_map, inplace=True)
+        data[["Date"]] = data[["Date"]].apply(pd.to_datetime)
+        data[["Open", "High", "Low", "Close", "Volume"]] = data[[
+            "Open", "High", "Low", "Close", "Volume"]].apply(pd.to_numeric)
+        data.set_index("Date", inplace=True)
+
+        return data
 
     # 시세 조회------------
 
@@ -616,15 +678,15 @@ class Api:
 
     # HTTTP----------------
 
-    def _send_get_request(self, req: APIRequestParameter) -> APIResponse:
+    def _send_get_request(self, req: APIRequestParameter, raise_flag: bool = True) -> APIResponse:
         """
         HTTP GET method로 request를 보내고 response를 반환한다.
         """
         url = self.domain.get_url(req.url_path)
         headers = self._parse_headers(req)
-        return send_get_request(url, headers, req.params)
+        return send_get_request(url, headers, req.params, raise_flag=raise_flag)
 
-    def _send_post_request(self, req: APIRequestParameter) -> APIResponse:
+    def _send_post_request(self, req: APIRequestParameter, raise_flag: bool = True) -> APIResponse:
         """
         HTTP GET method로 request를 보내고 response를 반환한다.
         """
@@ -633,7 +695,7 @@ class Api:
 
         if req.requires_hash:
             self.set_hash_key(headers, req.params)
-        return send_post_request(url, headers, req.params)
+        return send_post_request(url, headers, req.params, raise_flag=raise_flag)
 
     def _parse_headers(self, req: APIRequestParameter) -> Tuple[str, Json]:
         """
