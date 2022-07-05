@@ -629,7 +629,7 @@ class Api:
         order_branch: 주문점(통상 06010)
         order_amount: 주문수량
         order_price: 주문가격
-        cncl_dv: 정정구분(취소-02, 정정-01)
+        is_cancel: 정정구분(취소-True, 정정-False)
         qty_all_yn: 잔량전부주문여부(Y-잔량전부, N-잔량일부)
         """
         url_path = "/uapi/domestic-stock/v1/trading/order-rvsecncl"
