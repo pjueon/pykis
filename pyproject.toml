@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pykis"
+version = "0.7.0"
+authors = [
+  { name="Jueon Park", email="bluegbgb@gmail.com" },
+]
+description = "A python wrapper for open trading api of Korea Investment & Securities."
+readme = "README.md"
+license = { file="LICENSE" }
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "requests>=2.25.1",
+    "pandas>=1.4",
+]
+
+[project.urls]
+"Github" = "https://github.com/pjueon/pykis"
+"Bug Tracker" = "https://github.com/pjueon/pykis/issues"

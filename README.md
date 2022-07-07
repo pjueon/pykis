@@ -21,17 +21,24 @@ pykis는 Apache-2.0 license를 따릅니다.
 
 ### 기타
 - pykis는 개인 투자 용도로만 개발되었습니다. 
-- pykis를 사용하기 위해서는 python 3.6 버전 이상이 필요합니다.
+- pykis를 사용하기 위해서는 python 3.7 버전 이상이 필요합니다.
 - pykis는 아직 개발 단계입니다. 버그나 기능 요청 등의 feedback은 issue나 pull request를 통해 부탁드립니다. 
 
 ## 패키지 설치 
-- pykis는 현재 개발 단계로 수정이 잦습니다. git을 통해 해당 repository를 clone하여 사용하세요.  
+### Github에서 직접 다운로드
+pykis는 현재 개발 단계로 수정이 잦습니다. git을 통해 해당 repository를 clone하여 최신 버전을 사용하는 것을 추천합니다.   
 ```shell
 git clone https://github.com/pjueon/pykis.git
 cd pykis
 pip3 install -r requirements.txt
 ```
-- 추후 pip 를 통해 설치할 수 있도록 정식 패키징 예정입니다. 
+
+### pip를 통해 설치 
+pip를 통해 가장 마지막으로 release된 버전을 설치할 수 있습니다.
+```shell
+pip3 install pykis
+```
+
 
 
 ## API 기본 사용법 
