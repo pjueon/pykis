@@ -545,19 +545,28 @@ class Api:
         """
         취소/정정 가능한 국내 주식 주문 목록을 DataFrame으로 반환한다.
         """
+        def sell_or_buy(value):  # 01: 매도, 02: 매수
+            return "매도" if value == "01" else "매수"
+
         def to_dataframe(res: APIResponse) -> pd.DataFrame:
             data = pd.DataFrame(res.outputs[0])
             if data.empty:
                 return data
 
             data.set_index("odno", inplace=True)
-            keys = ["pdno", "ord_qty", "ord_unpr",
-                   "ord_tmd", "ord_gno_brno", "orgn_odno"]
-            values = ["종목코드", "주문수량", "주문가격", "시간", "주문점", "원번호"]
+            keys = ["pdno", "ord_qty", "ord_unpr", "sll_buy_dvsn_cd",
+                    "ord_tmd", "ord_gno_brno", "orgn_odno"]
+            values = ["종목코드", "주문수량", "주문가격", "매수매도구분", "시간", "주문점", "원번호"]
             data = data[keys]
-            rename_map = dict(zip(keys, values))
+            sell_or_buy_column = "sll_buy_dvsn_cd"
 
-            return data.rename(columns=rename_map)
+            data[sell_or_buy_column] = data[sell_or_buy_column].apply(
+                sell_or_buy)
+
+            rename_map = dict(zip(keys, values))
+            data = data.rename(columns=rename_map)
+
+            return data
 
         return self._send_continuous_query(self._get_kr_orders_once, to_dataframe)
 
