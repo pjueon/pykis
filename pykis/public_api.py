@@ -719,7 +719,7 @@ class Api:
                                  price: int,
                                  amount: Optional[int] = None,
                                  order_branch: str = "06010"
-                                 ) -> APIResponse:
+                                 ) -> Json:
         """
         국내 주식 주문을 정정 또는 취소한다
         order_number: 주문 번호
@@ -727,6 +727,7 @@ class Api:
         amount: 정정/취소 적용할 주문의 수량
         price: 정정할 주문의 가격
         is_cancel: 정정구분(취소-True, 정정-False)
+        return: 서버 response
         """
         url_path = "/uapi/domestic-stock/v1/trading/order-rvsecncl"
         tr_id = "TTTC0803U"
@@ -755,14 +756,16 @@ class Api:
         req = APIRequestParameter(url_path, tr_id=tr_id,
                                   params=params, requires_authentication=True, requires_hash=True)
 
-        return self._send_post_request(req)
+        res = self._send_post_request(req)
+        return res.body
 
     def cancel_kr_order(self, order_number: str, amount: Optional[int] = None,
-                        order_branch: str = "06010") -> APIResponse:
+                        order_branch: str = "06010") -> Json:
         """
         국내 주식 주문을 취소한다.
         order_number: 주문 번호.
         amount: 취소할 수량. 지정하지 않은 경우 잔량 전부 취소.
+        return: 서버 response.
         """
 
         return self._revise_cancel_kr_orders(order_number=order_number,
@@ -787,12 +790,13 @@ class Api:
     def revise_kr_order(self, order_number: str,
                         price: int,
                         amount: Optional[int] = None,
-                        order_branch: str = "06010") -> APIResponse:
+                        order_branch: str = "06010") -> Json:
         """
         국내 주식 주문의 가격을 정정한다.
         order_number: 주문 번호.
         price: 정정할 1주당 가격.
         amount: 정정할 수량. 지정하지 않은 경우 잔량 전부 정정.
+        return: 서버 response.
         """
 
         return self._revise_cancel_kr_orders(order_number=order_number,
