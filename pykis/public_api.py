@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 from collections import namedtuple
 from typing import NamedTuple, Optional, Dict, Iterable, Any, List, Tuple, Callable
 import json
+import time
 import requests
 import pandas as pd
 
@@ -575,8 +576,8 @@ class Api:
     # 잔고 조회------------
 
     # 주문 조회------------
-    def _get_kr_stock_orders_once(self, extra_header: Json = None,
-                                  extra_param: Json = None) -> APIResponse:
+    def _get_kr_orders_once(self, extra_header: Json = None,
+                            extra_param: Json = None) -> APIResponse:
         """
         취소/정정 가능한 국내 주식 주문 목록을 반환한다.
         한번만 실행.
@@ -605,25 +606,35 @@ class Api:
 
         return res
 
-    def get_kr_stock_orders(self) -> pd.DataFrame:
+    def get_kr_orders(self) -> pd.DataFrame:
         """
         취소/정정 가능한 국내 주식 주문 목록을 DataFrame으로 반환한다.
         """
+        def sell_or_buy(value):  # 01: 매도, 02: 매수
+            return "매도" if value == "01" else "매수"
+
         def to_dataframe(res: APIResponse) -> pd.DataFrame:
-            tdf = pd.DataFrame(res.outputs[0])
-            if tdf.empty:
-                return tdf
+            data = pd.DataFrame(res.outputs[0])
+            if data.empty:
+                return data
 
-            tdf.set_index("odno", inplace=True)
-            cf1 = ["pdno", "ord_qty", "ord_unpr",
-                   "ord_tmd", "ord_gno_brno", "orgn_odno"]
-            cf2 = ["종목코드", "주문수량", "주문가격", "시간", "주문점", "원번호"]
-            tdf = tdf[cf1]
-            ren_dict = dict(zip(cf1, cf2))
+            data.set_index("odno", inplace=True)
+            keys = ["pdno", "ord_qty", "psbl_qty", "ord_unpr", "sll_buy_dvsn_cd",
+                    "ord_tmd", "ord_gno_brno", "orgn_odno"]
+            values = ["종목코드", "주문수량", "정정취소가능수량",
+                      "주문가격", "매수매도구분", "시간", "주문점", "원번호"]
+            data = data[keys]
+            sell_or_buy_column = "sll_buy_dvsn_cd"
 
-            return tdf.rename(columns=ren_dict)
+            data[sell_or_buy_column] = data[sell_or_buy_column].apply(
+                sell_or_buy)
 
-        return self._send_continuous_query(self._get_kr_stock_orders_once, to_dataframe)
+            rename_map = dict(zip(keys, values))
+            data = data.rename(columns=rename_map)
+
+            return data
+
+        return self._send_continuous_query(self._get_kr_orders_once, to_dataframe)
 
     # 주문 조회------------
 
@@ -678,6 +689,96 @@ class Api:
         return self._send_kr_stock_order(ticker, order_amount, price, False)
 
     # 매매-----------------
+
+    # 정정/취소-------------
+    def _revise_cancel_kr_orders(self,  # pylint: disable=too-many-arguments
+                                 order_number: str,
+                                 is_cancel: bool,
+                                 price: int,
+                                 amount: Optional[int] = None,
+                                 order_branch: str = "06010"
+                                 ) -> APIResponse:
+        """
+        국내 주식 주문을 정정 또는 취소한다
+        order_number: 주문 번호
+        order_branch: 주문점(통상 06010)
+        amount: 정정/취소 적용할 주문의 수량
+        price: 정정할 주문의 가격
+        is_cancel: 정정구분(취소-True, 정정-False)
+        """
+        url_path = "/uapi/domestic-stock/v1/trading/order-rvsecncl"
+        tr_id = "TTTC0803U"
+
+        order_dv: str = "00"  # order_dv: 주문유형(00-지정가)
+        cancel_dv: str = "02" if is_cancel else "01"
+
+        apply_all = "N"  # apply_all: 잔량전부주문여부(Y-잔량전부, N-잔량일부)
+
+        if amount is None or amount <= 0:
+            apply_all = "Y"
+            amount = 1
+
+        params = {
+            "CANO": self.account.account_code,
+            "ACNT_PRDT_CD": self.account.product_code,
+            "KRX_FWDG_ORD_ORGNO": order_branch,
+            "ORGN_ODNO": order_number,
+            "ORD_DVSN": order_dv,
+            "RVSE_CNCL_DVSN_CD": cancel_dv,
+            "ORD_QTY": str(amount),
+            "ORD_UNPR": str(price),
+            "QTY_ALL_ORD_YN": apply_all
+        }
+
+        req = APIRequestParameter(url_path, tr_id=tr_id,
+                                  params=params, requires_authentication=True, requires_hash=True)
+
+        return self._send_post_request(req)
+
+    def cancel_kr_order(self, order_number: str, amount: Optional[int] = None,
+                        order_branch: str = "06010") -> APIResponse:
+        """
+        국내 주식 주문을 취소한다.
+        order_number: 주문 번호.
+        amount: 취소할 수량. 지정하지 않은 경우 잔량 전부 취소.
+        """
+
+        return self._revise_cancel_kr_orders(order_number=order_number,
+                                             is_cancel=True,
+                                             amount=amount,
+                                             price=1,
+                                             order_branch=order_branch)
+
+    def cancel_all_kr_orders(self) -> None:
+        """
+        미체결된 모든 국내 주식 주문들을 취소한다.
+        """
+        data = self.get_kr_orders()
+        orders = data.index.to_list()
+        branchs = data["주문점"].to_list()
+        delay = 0.2  # sec
+
+        for order, branch in zip(orders, branchs):
+            self.cancel_kr_order(order, order_branch=branch)
+            time.sleep(delay)
+
+    def revise_kr_order(self, order_number: str,
+                        price: int,
+                        amount: Optional[int] = None,
+                        order_branch: str = "06010") -> APIResponse:
+        """
+        국내 주식 주문의 가격을 정정한다.
+        order_number: 주문 번호.
+        price: 정정할 1주당 가격.
+        amount: 정정할 수량. 지정하지 않은 경우 잔량 전부 정정.
+        """
+
+        return self._revise_cancel_kr_orders(order_number=order_number,
+                                             is_cancel=False,
+                                             amount=amount,
+                                             price=price,
+                                             order_branch=order_branch)
+    # 정정/취소-------------
 
     # HTTTP----------------
 
