@@ -554,9 +554,10 @@ class Api:
                 return data
 
             data.set_index("odno", inplace=True)
-            keys = ["pdno", "ord_qty", "ord_unpr", "sll_buy_dvsn_cd",
+            keys = ["pdno", "ord_qty", "psbl_qty", "ord_unpr", "sll_buy_dvsn_cd",
                     "ord_tmd", "ord_gno_brno", "orgn_odno"]
-            values = ["종목코드", "주문수량", "주문가격", "매수매도구분", "시간", "주문점", "원번호"]
+            values = ["종목코드", "주문수량", "정정취소가능수량",
+                      "주문가격", "매수매도구분", "시간", "주문점", "원번호"]
             data = data[keys]
             sell_or_buy_column = "sll_buy_dvsn_cd"
 
@@ -683,7 +684,7 @@ class Api:
         """
         data = self.get_kr_orders()
         orders = data.index.to_list()
-        amounts = data["주문수량"].to_list()
+        amounts = data["정정취소가능수량"].to_list()
         branchs = data["주문점"].to_list()
         delay = 0.2  # sec
 
