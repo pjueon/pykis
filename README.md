@@ -89,7 +89,7 @@ print(f"거래 가능 현금: {cash} 원")
 ### 국내 주식 현재가 조회
 ```python
 ticker = "005930"   # 삼성전자 종목코드
-price = api.get_kr_stock_price(ticker)
+price = api.get_kr_current_price(ticker)
 print(f"삼성전자 현재가: {price} 원")
 ```
 
