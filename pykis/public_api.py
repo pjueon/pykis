@@ -627,20 +627,20 @@ class Api:
 
     # 정정/취소-------------
     def _revise_cancel_kr_orders(self,  # pylint: disable=too-many-arguments
-                                 order_no: str,
+                                 order_number: str,
                                  order_branch: str,
-                                 order_amount: int,
-                                 order_price: int,
+                                 amount: int,
+                                 price: int,
                                  is_cancel: bool,
-                                 qty_all_yn: str = "Y") -> APIResponse:
+                                 apply_all: str = "Y") -> APIResponse:
         """
         국내 주식 주문을 정정 또는 취소한다
-        order_no: 주문 번호
+        order_number: 주문 번호
         order_branch: 주문점(통상 06010)
-        order_amount: 주문수량
-        order_price: 주문가격
+        amount: 정정/취소 적용할 주문의 수량
+        price: 정정할 주문의 가격
         is_cancel: 정정구분(취소-True, 정정-False)
-        qty_all_yn: 잔량전부주문여부(Y-잔량전부, N-잔량일부)
+        apply_all: 잔량전부주문여부(Y-잔량전부, N-잔량일부)
         """
         url_path = "/uapi/domestic-stock/v1/trading/order-rvsecncl"
         tr_id = "TTTC0803U"
@@ -652,12 +652,12 @@ class Api:
             "CANO": self.account.account_code,
             "ACNT_PRDT_CD": self.account.product_code,
             "KRX_FWDG_ORD_ORGNO": order_branch,
-            "ORGN_ODNO": order_no,
+            "ORGN_ODNO": order_number,
             "ORD_DVSN": order_dv,
             "RVSE_CNCL_DVSN_CD": cancel_dv,
-            "ORD_QTY": str(order_amount),
-            "ORD_UNPR": str(order_price),
-            "QTY_ALL_ORD_YN": qty_all_yn
+            "ORD_QTY": str(amount),
+            "ORD_UNPR": str(price),
+            "QTY_ALL_ORD_YN": apply_all
         }
 
         req = APIRequestParameter(url_path, tr_id=tr_id,
@@ -665,18 +665,25 @@ class Api:
 
         return self._send_post_request(req)
 
-    def cancel_kr_order(self, order_no: str, order_amount: int,
-                        order_branch: str = "06010",
-                        qty_all_yn: str = "Y") -> APIResponse:
+    def cancel_kr_order(self, order_number: str, amount: Optional[int] = None,
+                        order_branch: str = "06010") -> APIResponse:
         """
         국내 주식 주문을 취소한다.
+        order_number: 주문 번호.
+        amount: 취소할 수량. 지정하지 않은 경우 잔량 전부 취소.
         """
-        return self._revise_cancel_kr_orders(order_no=order_no,
-                                             order_amount=order_amount,
-                                             order_price=1,
+        apply_all = "N"
+
+        if amount is None or amount <= 0:
+            apply_all = "Y"
+            amount = 1
+
+        return self._revise_cancel_kr_orders(order_number=order_number,
+                                             amount=amount,
+                                             price=1,
                                              order_branch=order_branch,
                                              is_cancel=True,
-                                             qty_all_yn=qty_all_yn)
+                                             apply_all=apply_all)
 
     def cancel_all_kr_orders(self) -> None:
         """
@@ -684,27 +691,35 @@ class Api:
         """
         data = self.get_kr_orders()
         orders = data.index.to_list()
-        amounts = data["정정취소가능수량"].to_list()
         branchs = data["주문점"].to_list()
         delay = 0.2  # sec
 
-        for order, amount, branch in zip(orders, amounts, branchs):
-            self.cancel_kr_order(order, amount, order_branch=branch)
+        for order, branch in zip(orders, branchs):
+            self.cancel_kr_order(order, order_branch=branch)
             time.sleep(delay)
 
-    def revise_kr_order(self, order_no: str, order_amount: int,   # pylint: disable=too-many-arguments
-                        order_price: int,
-                        order_branch: str = "06010",
-                        qty_all_yn: str = "Y") -> APIResponse:
+    def revise_kr_order(self, order_number: str,
+                        price: int,
+                        amount: Optional[int] = None,
+                        order_branch: str = "06010") -> APIResponse:
         """
-        국내 주식 주문을 정정한다.
+        국내 주식 주문의 가격을 정정한다.
+        order_number: 주문 번호.
+        price: 정정할 1주당 가격.
+        amount: 정정할 수량. 지정하지 않은 경우 잔량 전부 정정.
         """
-        return self._revise_cancel_kr_orders(order_no=order_no,
-                                             order_amount=order_amount,
-                                             order_price=order_price,
+        apply_all = "N"
+
+        if amount is None or amount <= 0:
+            apply_all = "Y"
+            amount = 1
+
+        return self._revise_cancel_kr_orders(order_number=order_number,
+                                             amount=amount,
+                                             price=price,
                                              order_branch=order_branch,
                                              is_cancel=False,
-                                             qty_all_yn=qty_all_yn)
+                                             apply_all=apply_all)
     # 정정/취소-------------
 
     # HTTTP----------------
