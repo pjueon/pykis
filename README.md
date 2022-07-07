@@ -131,9 +131,9 @@ print(f"총 예수금: {deposit} 원")
 ### 국내 주식 매수 주문
 ```python
 ticker = "005930"   # 삼성전자 종목코드
-price = 100000      # 매수 가격 예시
+price = 100000      # 매수 가격 예시. 가격이 0 이하인 경우 시장가로 매수
 
-# 종목코드 ticker인 국내 주식 1주를 지정가로 매수 주문 
+# 종목코드 ticker인 국내 주식 1주 매수 주문 
 ret = api.buy_kr_stock(ticker, 1, price=price)
 
 # 반환값: 서버 응답 (주문 번호 등의 정보)
@@ -143,7 +143,7 @@ print(ret)
 ### 국내 주식 매도 주문 
 ```python
 ticker = "005930"   # 삼성전자 종목코드
-price = 100000      # 매도 가격 예시
+price = 100000      # 매도 가격 예시. 가격이 0 이하인 경우 시장가로 매도
 
 # 종목코드 ticker인 국내 주식 1주를 지정가로 매도 주문 
 ret = api.sell_kr_stock(ticker, 1, price=price)
