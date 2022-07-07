@@ -352,7 +352,7 @@ class Api:
     # 인증-----------------
 
     # 시세 조회------------
-    def get_kr_stock_price(self, ticker: str) -> int:
+    def get_kr_current_price(self, ticker: str) -> int:
         """
         국내 주식 현재가를 반환한다.
         ticker: 종목코드
