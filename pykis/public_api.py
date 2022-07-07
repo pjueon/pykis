@@ -666,7 +666,11 @@ class Api:
         """
         국내 주식 매매(현금)
         """
-        order_type = "00"  # 00: 지정가, 01: 시장가, ... (추후 옵션화 예정)
+        order_type = "00"  # 00: 지정가, 01: 시장가, ...
+        if price <= 0:
+            price = 0
+            order_type = "01"   # 시장가
+
         url_path = "/uapi/domestic-stock/v1/trading/order-cash"
 
         if buy:
