@@ -1,5 +1,5 @@
 """
-pykis: A python wrapper for Korean Investment & Sekuritas Indonesia Open Trading API
+pykis: A python wrapper for the open trading api of Korea Investment & Securities.
 """
 # Copyright 2022 Jueon Park
 #
