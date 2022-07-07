@@ -101,6 +101,20 @@ time_unit = "D"     # 기간 분류 코드 (D/day-일, W/week-주, M/month-월),
 ohlcv = api.get_kr_ohlcv(ticker, time_unit)
 ```
 
+### 국내 주식 하한가 조회
+```python
+ticker = "005930"   # 삼성전자 종목코드
+price = api.get_kr_min_price(ticker)
+print(f"삼성전자 하한가: {price} 원")
+```
+
+### 국내 주식 상한가 조회
+```python
+ticker = "005930"   # 삼성전자 종목코드
+price = api.get_kr_max_price(ticker)
+print(f"삼성전자 상한가: {price} 원")
+```
+
 ### 국내 주식 잔고 조회 
 ```python
 # DataFrame 형태로 국내 주식 잔고 반환 
