@@ -628,11 +628,11 @@ class Api:
     # 정정/취소-------------
     def _revise_cancel_kr_orders(self,  # pylint: disable=too-many-arguments
                                  order_number: str,
-                                 order_branch: str,
-                                 amount: int,
-                                 price: int,
                                  is_cancel: bool,
-                                 apply_all: str = "Y") -> APIResponse:
+                                 price: int,
+                                 amount: Optional[int] = None,
+                                 order_branch: str = "06010"
+                                 ) -> APIResponse:
         """
         국내 주식 주문을 정정 또는 취소한다
         order_number: 주문 번호
@@ -640,13 +640,18 @@ class Api:
         amount: 정정/취소 적용할 주문의 수량
         price: 정정할 주문의 가격
         is_cancel: 정정구분(취소-True, 정정-False)
-        apply_all: 잔량전부주문여부(Y-잔량전부, N-잔량일부)
         """
         url_path = "/uapi/domestic-stock/v1/trading/order-rvsecncl"
         tr_id = "TTTC0803U"
 
         order_dv: str = "00"  # order_dv: 주문유형(00-지정가)
         cancel_dv: str = "02" if is_cancel else "01"
+
+        apply_all = "N"  # apply_all: 잔량전부주문여부(Y-잔량전부, N-잔량일부)
+
+        if amount is None or amount <= 0:
+            apply_all = "Y"
+            amount = 1
 
         params = {
             "CANO": self.account.account_code,
@@ -672,18 +677,12 @@ class Api:
         order_number: 주문 번호.
         amount: 취소할 수량. 지정하지 않은 경우 잔량 전부 취소.
         """
-        apply_all = "N"
-
-        if amount is None or amount <= 0:
-            apply_all = "Y"
-            amount = 1
 
         return self._revise_cancel_kr_orders(order_number=order_number,
+                                             is_cancel=True,
                                              amount=amount,
                                              price=1,
-                                             order_branch=order_branch,
-                                             is_cancel=True,
-                                             apply_all=apply_all)
+                                             order_branch=order_branch)
 
     def cancel_all_kr_orders(self) -> None:
         """
@@ -708,18 +707,12 @@ class Api:
         price: 정정할 1주당 가격.
         amount: 정정할 수량. 지정하지 않은 경우 잔량 전부 정정.
         """
-        apply_all = "N"
-
-        if amount is None or amount <= 0:
-            apply_all = "Y"
-            amount = 1
 
         return self._revise_cancel_kr_orders(order_number=order_number,
+                                             is_cancel=False,
                                              amount=amount,
                                              price=price,
-                                             order_branch=order_branch,
-                                             is_cancel=False,
-                                             apply_all=apply_all)
+                                             order_branch=order_branch)
     # 정정/취소-------------
 
     # HTTTP----------------
