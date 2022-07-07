@@ -675,12 +675,11 @@ class Api:
         data = self.get_kr_orders()
         orders = data.index.to_list()
         amounts = data["주문수량"].to_list()
-        prices = data["주문가격"].to_list()
         branchs = data["주문점"].to_list()
         delay = 0.2  # sec
 
-        for order, amount, price, branch in zip(orders, amounts, prices, branchs):
-            self.cancel_kr_order(order, amount, price, branch)
+        for order, amount, branch in zip(orders, amounts, branchs):
+            self.cancel_kr_order(order, amount, order_branch=branch)
             time.sleep(delay)
 
     def revise_kr_order(self, order_no: str, order_amount: int,   # pylint: disable=too-many-arguments
