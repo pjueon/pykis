@@ -129,7 +129,7 @@ print(ret)
 ### 국내 주식 매도 주문 
 ```python
 ticker = "005930"   # 삼성전자 종목코드
-price = 100000      # 매수 가격 예시
+price = 100000      # 매도 가격 예시
 
 # 종목코드 ticker인 국내 주식 1주를 지정가로 매도 주문 
 ret = api.sell_kr_stock(ticker, 1, price=price)
