@@ -364,6 +364,28 @@ class Api:
 
         return int(price)
 
+    def get_kr_max_price(self, ticker: str) -> int:
+        """
+        국내 주식의 상한가를 반환한다.
+        ticker: 종목코드
+        return: 해당 종목의 상한가 (단위: 원)
+        """
+        info = self._get_kr_stock_current_price_info(ticker)
+        price = info["stck_mxpr"]
+
+        return int(price)
+
+    def get_kr_min_price(self, ticker: str) -> int:
+        """
+        국내 주식의 하한가를 반환한다.
+        ticker: 종목코드
+        return: 해당 종목의 하한가 (단위: 원)
+        """
+        info = self._get_kr_stock_current_price_info(ticker)
+        price = info["stck_llam"]
+
+        return int(price)
+
     def _get_kr_stock_current_price_info(self, ticker: str) -> Json:
         """
         국내 주식 현재가 시세 정보를 반환한다.
