@@ -17,4 +17,4 @@ pykis: A python wrapper for Korean Investment & Sekuritas Indonesia Open Trading
 
 from .public_api import *
 
-__version__ = "0.5.0"
+__version__ = "0.7.0"
