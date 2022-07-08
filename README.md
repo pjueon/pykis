@@ -168,9 +168,9 @@ print(orders)
 
 ### 미체결 국내 주식 주문 취소
 ```python
-# order_num: 주문 번호. api.get_kr_orders 통해 확인 가능.
+# order_number: 주문 번호. api.get_kr_orders 통해 확인 가능.
 # amount: 취소할 주문 수량. 지정하지 않은 경우 잔량 전부 취소.
-api.cancel_kr_order(order_num, amount)
+api.cancel_kr_order(order_number, amount)
 ```
 
 ### 모든 미체결 국내 주식 주문 취소
@@ -180,10 +180,10 @@ api.cancel_all_kr_orders()
 
 ### 국내 주식 주문 정정
 ```python
-# order_num: 주문 번호. api.get_kr_orders 통해 확인 가능.
+# order_number: 주문 번호. api.get_kr_orders 통해 확인 가능.
 # price: 정정할 1주당 가격.
 # amount: 정정할 주문 수량. 지정하지 않은 경우 잔량 전부 정정.
-api.revise_kr_order(order_num, price, amount)
+api.revise_kr_order(order_number, price, amount)
 ```
 
 
