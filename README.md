@@ -26,7 +26,7 @@ pykis는 Apache-2.0 license를 따릅니다.
 
 ## 패키지 설치 
 ### Github에서 직접 다운로드
-pykis는 현재 개발 단계로 수정이 잦습니다. git을 통해 해당 repository를 clone하여 최신 버전을 사용하는 것을 추천합니다.   
+pykis는 현재 개발 단계로 수정이 잦습니다. github repository를 clone하여 최신 버전을 사용하는 것을 추천합니다.   
 ```shell
 git clone https://github.com/pjueon/pykis.git
 cd pykis
