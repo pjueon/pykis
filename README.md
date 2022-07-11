@@ -186,6 +186,17 @@ api.cancel_all_kr_orders()
 api.revise_kr_order(order_number, price, amount)
 ```
 
+### 해외 주식 현재가 조회
+```python
+# ticker: 종목코드
+# market_code: 거래소 코드 (NYS-뉴욕, NAS-나스닥, AMX-아멕스, etc)
+ticker = "TSLA"
+market_code: "NAS"
+
+price = api.get_os_current_price(ticker, market_code)
+print(price)
+```
+
 
 ## 관련 참고 자료
 - [한국투자증권 KIS Developers](https://apiportal.koreainvestment.com)
