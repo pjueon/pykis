@@ -465,6 +465,40 @@ class Api:
 
         return data
 
+    def _get_os_stock_current_price_info(self, ticker: str, market_code: str) -> Json:
+        """
+        해외 주식 현재가 시세 정보를 반환한다.
+        ticker: 종목코드
+        market_code: 거래소 코드 (NYS-뉴욕, NAS-나스닥, AMX-아멕스, etc)
+        return: 해당 종목 현재 시세 정보
+        """
+        url_path = "/uapi/overseas-price/v1/quotations/price"
+
+        tr_id = "HHDFS00000300"
+        ticker = ticker.upper()
+
+        params = {
+            "AUTH": "",
+            "EXCD": market_code,
+            "SYMB": ticker
+        }
+
+        req = APIRequestParameter(url_path, tr_id, params)
+        res = self._send_get_request(req)
+        return res.outputs[0]
+
+    def get_os_current_price(self, ticker: str, market_code: str) -> float:
+        """
+        해외 주식 현재가를 반환한다.
+        ticker: 종목코드
+        market_code: 거래소 코드 (NYS-뉴욕, NAS-나스닥, AMX-아멕스, etc)
+        return: 해당 종목 현재가 (단위: 해당 화폐)
+        """
+        info = self._get_os_stock_current_price_info(ticker, market_code)
+        price = info["last"]
+
+        return float(price)
+
     # 시세 조회------------
 
     # 잔고 조회------------
