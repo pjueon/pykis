@@ -476,6 +476,7 @@ class Api:
 
         tr_id = "HHDFS00000300"
         ticker = ticker.upper()
+        market_code = market_code.upper()
 
         params = {
             "AUTH": "",
