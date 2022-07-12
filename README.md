@@ -187,11 +187,16 @@ api.revise_kr_order(order_number, price, amount)
 ```
 
 ### 해외 주식 현재가 조회
+|           |홍콩|뉴욕|나스닥|아멕스|도쿄|상해|심천|상해지수|심천지수|호치민|하노이|
+|-----------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+|거래소 코드|HKS|NYS|NAS|AMS|TSE|SHS|SZS|SHI|SZI|HSX|HNX|
+
+
 ```python
 # ticker: 종목코드
-# market_code: 거래소 코드 (NYS-뉴욕, NAS-나스닥, AMX-아멕스, etc)
-ticker = "TSLA"
-market_code: "NAS"
+# market_code: 거래소 코드 (상기 표 참고)
+ticker = "TSLA"			# 테슬라 종목코드
+market_code: "NAS"		# 나스닥 거래소 코드
 
 price = api.get_os_current_price(ticker, market_code)
 print(price)
