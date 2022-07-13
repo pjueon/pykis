@@ -659,6 +659,39 @@ class Api:
         else:
             raise RuntimeError(f"invalid market code: {market_code}")
 
+    def get_us_stock_balance(self) -> pd.DataFrame:
+        """
+        미국 주식 잔고 조회
+        return: 미국 주식 잔고 정보를 DataFrame으로 반환
+        """
+        return self._get_os_stock_balance("NASD")
+
+    def _get_os_stock_balance(self, market_code: str) -> pd.DataFrame:
+        """
+        해외 주식 잔고 조회
+        return: 해외 주식 잔고 정보를 DataFrame으로 반환
+        """
+
+        def to_dataframe(res: APIResponse) -> pd.DataFrame:
+            tdf = pd.DataFrame(res.outputs[0])
+            if tdf.empty:
+                return tdf
+
+            tdf.set_index("ovrs_pdno", inplace=True)
+            cf1 = ["ovrs_item_name", "ovrs_cblc_qty", "ord_psbl_qty", "frcr_pchs_amt1",
+                   "evlu_pfls_rt", "now_pric2", "ovrs_excg_cd", "tr_crcy_cd"]
+            cf2 = ["종목명", "보유수량", "매도가능수량", "매입단가",
+                   "수익율", "현재가", "거래소코드", "거래화폐코드"]
+            tdf = tdf[cf1]
+            tdf[cf1[1:-2]] = tdf[cf1[1:-2]].apply(pd.to_numeric)
+            ren_dict = dict(zip(cf1, cf2))
+            return tdf.rename(columns=ren_dict)
+
+        def request_function(*args, **kwargs):
+            return self._get_os_total_balance(market_code, *args, **kwargs)
+
+        return self._send_continuous_query(request_function, to_dataframe)
+
     def _get_os_total_balance(self, market_code: str, extra_header: Json = None,
                               extra_param: Json = None) -> APIResponse:
         """
