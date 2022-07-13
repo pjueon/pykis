@@ -535,7 +535,8 @@ class Api:
 
     def _send_continuous_query(self, request_function: Callable[[Json, Json], APIResponse],
                                to_dataframe:
-                               Callable[[APIResponse], pd.DataFrame]) -> pd.DataFrame:
+                               Callable[[APIResponse], pd.DataFrame],
+                               is_kr: bool = True) -> pd.DataFrame:
         """
         조회 결과가 100건 이상 존재하는 경우 연속하여 query 후 전체 결과를 DataFrame으로 통합하여 반환한다.
         """
@@ -563,8 +564,9 @@ class Api:
             if no_more_data:
                 break
 
-            extra_param["CTX_AREA_FK100"] = res.body["ctx_area_fk100"]
-            extra_param["CTX_AREA_NK100"] = res.body["ctx_area_nk100"]
+            querry_code = self._continuous_querry_code(is_kr)
+            extra_param[f"CTX_AREA_FK{querry_code}"] = res.body[f"ctx_area_fk{querry_code}"]
+            extra_param[f"CTX_AREA_NK{querry_code}"] = res.body[f"ctx_area_nk{querry_code}"]
 
         return pd.concat(outputs)
 
@@ -581,6 +583,7 @@ class Api:
 
         extra_header = merge_json([{"tr_cont": ""}, extra_header])
 
+        querry_code = self._continuous_querry_code(True)
         params = {
             "CANO": self.account.account_code,
             "ACNT_PRDT_CD": self.account.product_code,
@@ -591,14 +594,20 @@ class Api:
             "OFL_YN": "N",
             "PRCS_DVSN": "01",
             "UNPR_DVSN": "01",
-            "CTX_AREA_FK100": "",
-            "CTX_AREA_NK100": ""
+            f"CTX_AREA_FK{querry_code}": "",
+            f"CTX_AREA_NK{querry_code}": ""
         }
 
         params = merge_json([params, extra_param])
         req = APIRequestParameter(url_path, tr_id, params,
                                   extra_header=extra_header)
         return self._send_get_request(req)
+
+    def _continuous_querry_code(self, is_kr: bool) -> str:
+        """
+        연속 querry 에 필요한 지역 관련 코드를 반환한다
+        """
+        return "100" if is_kr else "200"
 
     def get_kr_stock_balance(self) -> pd.DataFrame:
         """
@@ -646,12 +655,13 @@ class Api:
         extra_param = none_to_empty_dict(extra_param)
 
         extra_header = merge_json([{"tr_cont": ""}, extra_header])
+        querry_code = self._continuous_querry_code(True)
 
         params = {
             "CANO": self.account.account_code,
             "ACNT_PRDT_CD": self.account.product_code,
-            "CTX_AREA_FK100": "",
-            "CTX_AREA_NK100": "",
+            f"CTX_AREA_FK{querry_code}": "",
+            f"CTX_AREA_NK{querry_code}": "",
             "INQR_DVSN_1": "0",
             "INQR_DVSN_2": "0"
         }
