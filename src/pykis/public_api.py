@@ -659,10 +659,39 @@ class Api:
         else:
             raise RuntimeError(f"invalid market code: {market_code}")
 
+    def _get_os_total_balance(self, market_code: str, extra_header: Json = None,
+                              extra_param: Json = None) -> APIResponse:
+        """
+        해외 주식 잔고의 조회 전체 결과를 반환한다.
+        """
+        url_path = "/uapi/overseas-stock/v1/trading/inquire-balance"
+        tr_id = "JTTT3012R"
+
+        extra_header = none_to_empty_dict(extra_header)
+        extra_param = none_to_empty_dict(extra_param)
+
+        extra_header = merge_json([{"tr_cont": ""}, extra_header])
+
+        querry_code = self._continuous_querry_code(False)
+        currency_code = self._get_currency_code_from_market_code(market_code)
+
+        params = {
+            "CANO": self.account.account_code,
+            "ACNT_PRDT_CD": self.account.product_code,
+            "OVRS_EXCG_CD": market_code,
+            "TR_CRCY_CD": currency_code,
+            f"CTX_AREA_FK{querry_code}": "",
+            f"CTX_AREA_NK{querry_code}": ""
+        }
+
+        params = merge_json([params, extra_param])
+        req = APIRequestParameter(url_path, tr_id, params,
+                                  extra_header=extra_header)
+        return self._send_get_request(req)
+
     # 잔고 조회------------
 
     # 주문 조회------------
-
     def _get_kr_orders_once(self, extra_header: Json = None,
                             extra_param: Json = None) -> APIResponse:
         """
