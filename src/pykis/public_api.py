@@ -639,9 +639,30 @@ class Api:
 
         output2 = res.outputs[1]
         return int(output2[0]["dnca_tot_amt"])
+
+    def _get_currency_code_from_market_code(self, market_code: str) -> str:
+        """
+        거래소 코드를 입력 받아서 거래통화코드를 반환한다
+        """
+        market_code = market_code.upper()
+
+        if market_code in ["NASD", "NAS", "NYSE", "AMEX", "AMS"]:
+            return "USD"
+        elif market_code in ["SEHK", "HKS"]:
+            return "HKD"
+        elif market_code in ["SHAA", "SZAA", "SHS", "SZS"]:
+            return "CNY"
+        elif market_code in ["TKSE", "TSE"]:
+            return "JPN"
+        elif market_code in ["HASE", "VNSE", "HSX", "HNX"]:
+            return "VND"
+        else:
+            raise RuntimeError(f"invalid market code: {market_code}")
+
     # 잔고 조회------------
 
     # 주문 조회------------
+
     def _get_kr_orders_once(self, extra_header: Json = None,
                             extra_param: Json = None) -> APIResponse:
         """
