@@ -470,12 +470,16 @@ class Api:  # pylint: disable=too-many-public-methods
 
         raise RuntimeError(f"invalid market code: {market_code}")
 
-    def get_us_stock_balance(self) -> pd.DataFrame:
+    def get_os_stock_balance(self) -> pd.DataFrame:
         """
-        미국 주식 잔고 조회
+        해외 주식 잔고를 DataFrame으로 반환한다
         return: 미국 주식 잔고 정보를 DataFrame으로 반환
         """
-        return self._get_os_stock_balance("NASD")
+        market_codes = ["NASD", "SEHK", "SHAA", "SZAA", "TKSE", "HASE", "VNSE"]
+        datas = [self._get_os_stock_balance(market_code)
+                 for market_code in market_codes]
+
+        return pd.concat(datas)
 
     def _get_os_stock_balance(self, market_code: str) -> pd.DataFrame:
         """

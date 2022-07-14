@@ -187,9 +187,9 @@ api.revise_kr_order(order_number, price, amount)
 ```
 
 ### 해외 주식 현재가 조회
-|           |홍콩|뉴욕|나스닥|아멕스|도쿄|상해|심천|상해지수|심천지수|호치민|하노이|
-|-----------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
-|거래소 코드|HKS|NYS|NAS|AMS|TSE|SHS|SZS|SHI|SZI|HSX|HNX|
+|           |홍콩|뉴욕|나스닥|아멕스|도쿄|상해|심천|호치민|하노이|
+|-----------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+|거래소 코드|HKS|NYS|NAS|AMS|TSE|SHS|SZS|HSX|HNX|
 
 
 ```python
@@ -202,11 +202,11 @@ price = api.get_os_current_price(ticker, market_code)
 print(price)
 ```
 
-#### 미국 주식 잔고 조회
+### 해외 주식 잔고 조회
 ```python
 # DataFrame 형태로 국내 주식 잔고 반환 
-stock = api.get_us_stock_balance()
-print(f"보유중인 미국 주식: \n{stock}")
+stock = api.get_os_stock_balance()
+print(f"보유중인 해외 주식: \n{stock}")
 ```
 
 
