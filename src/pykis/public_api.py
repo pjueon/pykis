@@ -269,7 +269,7 @@ class AccessToken:
             datetime.now() < self.valid_until
 
 
-class Api:
+class Api:  # pylint: disable=too-many-public-methods
     """
     pykis의 public api를 나타내는 클래스
     """
@@ -618,16 +618,16 @@ class Api:
 
         if market_code in ["NASD", "NAS", "NYSE", "AMEX", "AMS"]:
             return "USD"
-        elif market_code in ["SEHK", "HKS"]:
+        if market_code in ["SEHK", "HKS"]:
             return "HKD"
-        elif market_code in ["SHAA", "SZAA", "SHS", "SZS"]:
+        if market_code in ["SHAA", "SZAA", "SHS", "SZS"]:
             return "CNY"
-        elif market_code in ["TKSE", "TSE"]:
+        if market_code in ["TKSE", "TSE"]:
             return "JPN"
-        elif market_code in ["HASE", "VNSE", "HSX", "HNX"]:
+        if market_code in ["HASE", "VNSE", "HSX", "HNX"]:
             return "VND"
-        else:
-            raise RuntimeError(f"invalid market code: {market_code}")
+
+        raise RuntimeError(f"invalid market code: {market_code}")
 
     def get_us_stock_balance(self) -> pd.DataFrame:
         """
