@@ -570,39 +570,6 @@ class Api:
 
         return pd.concat(outputs)
 
-    def _get_kr_total_balance(self, extra_header: Json = None,
-                              extra_param: Json = None) -> APIResponse:
-        """
-        국내 주식 잔고의 조회 전체 결과를 반환한다.
-        """
-        url_path = "/uapi/domestic-stock/v1/trading/inquire-balance"
-        tr_id = "TTTC8434R"
-
-        extra_header = none_to_empty_dict(extra_header)
-        extra_param = none_to_empty_dict(extra_param)
-
-        extra_header = merge_json([{"tr_cont": ""}, extra_header])
-
-        querry_code = self._continuous_querry_code(True)
-        params = {
-            "CANO": self.account.account_code,
-            "ACNT_PRDT_CD": self.account.product_code,
-            "AFHR_FLPR_YN": "N",
-            "FNCG_AMT_AUTO_RDPT_YN": "N",
-            "FUND_STTL_ICLD_YN": "N",
-            "INQR_DVSN": "01",
-            "OFL_YN": "N",
-            "PRCS_DVSN": "01",
-            "UNPR_DVSN": "01",
-            f"CTX_AREA_FK{querry_code}": "",
-            f"CTX_AREA_NK{querry_code}": ""
-        }
-
-        params = merge_json([params, extra_param])
-        req = APIRequestParameter(url_path, tr_id, params,
-                                  extra_header=extra_header)
-        return self._send_get_request(req)
-
     def _continuous_querry_code(self, is_kr: bool) -> str:
         """
         연속 querry 에 필요한 지역 관련 코드를 반환한다
@@ -629,7 +596,10 @@ class Api:
             ren_dict = dict(zip(cf1, cf2))
             return tdf.rename(columns=ren_dict)
 
-        return self._send_continuous_query(self._get_kr_total_balance, to_dataframe)
+        def request_function(*args, **kwargs):
+            return self._get_kr_total_balance(*args, **kwargs)
+
+        return self._send_continuous_query(request_function, to_dataframe)
 
     def get_kr_deposit(self) -> int:
         """
@@ -692,27 +662,28 @@ class Api:
 
         return self._send_continuous_query(request_function, to_dataframe)
 
-    def _get_os_total_balance(self, market_code: str, extra_header: Json = None,
-                              extra_param: Json = None) -> APIResponse:
+    def _get_total_balance(self, is_kr: bool,
+                           extra_header: Json = None,
+                           extra_param: Json = None) -> APIResponse:
         """
-        해외 주식 잔고의 조회 전체 결과를 반환한다.
+        주식 잔고의 조회 전체 결과를 반환한다.
         """
-        url_path = "/uapi/overseas-stock/v1/trading/inquire-balance"
-        tr_id = "JTTT3012R"
+        if is_kr:
+            url_path = "/uapi/domestic-stock/v1/trading/inquire-balance"
+            tr_id = "TTTC8434R"
+        else:
+            url_path = "/uapi/overseas-stock/v1/trading/inquire-balance"
+            tr_id = "JTTT3012R"
 
         extra_header = none_to_empty_dict(extra_header)
         extra_param = none_to_empty_dict(extra_param)
 
         extra_header = merge_json([{"tr_cont": ""}, extra_header])
-
-        querry_code = self._continuous_querry_code(False)
-        currency_code = self._get_currency_code_from_market_code(market_code)
+        querry_code = self._continuous_querry_code(is_kr)
 
         params = {
             "CANO": self.account.account_code,
             "ACNT_PRDT_CD": self.account.product_code,
-            "OVRS_EXCG_CD": market_code,
-            "TR_CRCY_CD": currency_code,
             f"CTX_AREA_FK{querry_code}": "",
             f"CTX_AREA_NK{querry_code}": ""
         }
@@ -722,9 +693,45 @@ class Api:
                                   extra_header=extra_header)
         return self._send_get_request(req)
 
+    def _get_os_total_balance(self, market_code: str, extra_header: Json = None,
+                              extra_param: Json = None) -> APIResponse:
+        """
+        해외 주식 잔고의 조회 전체 결과를 반환한다.
+        """
+        currency_code = self._get_currency_code_from_market_code(market_code)
+
+        extra_param = merge_json([{
+            "OVRS_EXCG_CD": market_code,
+            "TR_CRCY_CD": currency_code,
+        }, none_to_empty_dict(extra_param)])
+
+        is_kr = False
+
+        return self._get_total_balance(is_kr, extra_header, extra_param)
+
+    def _get_kr_total_balance(self, extra_header: Json = None,
+                              extra_param: Json = None) -> APIResponse:
+        """
+        국내 주식 잔고의 조회 전체 결과를 반환한다.
+        """
+        extra_param = merge_json([{
+            "AFHR_FLPR_YN": "N",
+            "FNCG_AMT_AUTO_RDPT_YN": "N",
+            "FUND_STTL_ICLD_YN": "N",
+            "INQR_DVSN": "01",
+            "OFL_YN": "N",
+            "PRCS_DVSN": "01",
+            "UNPR_DVSN": "01",
+        }, none_to_empty_dict(extra_param)])
+
+        is_kr = True
+
+        return self._get_total_balance(is_kr, extra_header, extra_param)
+
     # 잔고 조회------------
 
     # 주문 조회------------
+
     def _get_kr_orders_once(self, extra_header: Json = None,
                             extra_param: Json = None) -> APIResponse:
         """
