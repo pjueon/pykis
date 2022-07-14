@@ -202,6 +202,13 @@ price = api.get_os_current_price(ticker, market_code)
 print(price)
 ```
 
+#### 미국 주식 잔고 조회
+```python
+# DataFrame 형태로 국내 주식 잔고 반환 
+stock = api.get_us_stock_balance()
+print(f"보유중인 미국 주식: \n{stock}")
+```
+
 
 ## 관련 참고 자료
 - [한국투자증권 KIS Developers](https://apiportal.koreainvestment.com)

@@ -269,7 +269,7 @@ class AccessToken:
             datetime.now() < self.valid_until
 
 
-class Api:
+class Api:  # pylint: disable=too-many-public-methods
     """
     pykis의 public api를 나타내는 클래스
     """
@@ -535,7 +535,8 @@ class Api:
 
     def _send_continuous_query(self, request_function: Callable[[Json, Json], APIResponse],
                                to_dataframe:
-                               Callable[[APIResponse], pd.DataFrame]) -> pd.DataFrame:
+                               Callable[[APIResponse], pd.DataFrame],
+                               is_kr: bool = True) -> pd.DataFrame:
         """
         조회 결과가 100건 이상 존재하는 경우 연속하여 query 후 전체 결과를 DataFrame으로 통합하여 반환한다.
         """
@@ -563,42 +564,17 @@ class Api:
             if no_more_data:
                 break
 
-            extra_param["CTX_AREA_FK100"] = res.body["ctx_area_fk100"]
-            extra_param["CTX_AREA_NK100"] = res.body["ctx_area_nk100"]
+            querry_code = self._continuous_querry_code(is_kr)
+            extra_param[f"CTX_AREA_FK{querry_code}"] = res.body[f"ctx_area_fk{querry_code}"]
+            extra_param[f"CTX_AREA_NK{querry_code}"] = res.body[f"ctx_area_nk{querry_code}"]
 
         return pd.concat(outputs)
 
-    def _get_kr_total_balance(self, extra_header: Json = None,
-                              extra_param: Json = None) -> APIResponse:
+    def _continuous_querry_code(self, is_kr: bool) -> str:
         """
-        국내 주식 잔고의 조회 전체 결과를 반환한다.
+        연속 querry 에 필요한 지역 관련 코드를 반환한다
         """
-        url_path = "/uapi/domestic-stock/v1/trading/inquire-balance"
-        tr_id = "TTTC8434R"
-
-        extra_header = none_to_empty_dict(extra_header)
-        extra_param = none_to_empty_dict(extra_param)
-
-        extra_header = merge_json([{"tr_cont": ""}, extra_header])
-
-        params = {
-            "CANO": self.account.account_code,
-            "ACNT_PRDT_CD": self.account.product_code,
-            "AFHR_FLPR_YN": "N",
-            "FNCG_AMT_AUTO_RDPT_YN": "N",
-            "FUND_STTL_ICLD_YN": "N",
-            "INQR_DVSN": "01",
-            "OFL_YN": "N",
-            "PRCS_DVSN": "01",
-            "UNPR_DVSN": "01",
-            "CTX_AREA_FK100": "",
-            "CTX_AREA_NK100": ""
-        }
-
-        params = merge_json([params, extra_param])
-        req = APIRequestParameter(url_path, tr_id, params,
-                                  extra_header=extra_header)
-        return self._send_get_request(req)
+        return "100" if is_kr else "200"
 
     def get_kr_stock_balance(self) -> pd.DataFrame:
         """
@@ -620,7 +596,10 @@ class Api:
             ren_dict = dict(zip(cf1, cf2))
             return tdf.rename(columns=ren_dict)
 
-        return self._send_continuous_query(self._get_kr_total_balance, to_dataframe)
+        def request_function(*args, **kwargs):
+            return self._get_kr_total_balance(*args, **kwargs)
+
+        return self._send_continuous_query(request_function, to_dataframe)
 
     def get_kr_deposit(self) -> int:
         """
@@ -630,9 +609,129 @@ class Api:
 
         output2 = res.outputs[1]
         return int(output2[0]["dnca_tot_amt"])
+
+    def _get_currency_code_from_market_code(self, market_code: str) -> str:
+        """
+        거래소 코드를 입력 받아서 거래통화코드를 반환한다
+        """
+        market_code = market_code.upper()
+
+        if market_code in ["NASD", "NAS", "NYSE", "AMEX", "AMS"]:
+            return "USD"
+        if market_code in ["SEHK", "HKS"]:
+            return "HKD"
+        if market_code in ["SHAA", "SZAA", "SHS", "SZS"]:
+            return "CNY"
+        if market_code in ["TKSE", "TSE"]:
+            return "JPN"
+        if market_code in ["HASE", "VNSE", "HSX", "HNX"]:
+            return "VND"
+
+        raise RuntimeError(f"invalid market code: {market_code}")
+
+    def get_us_stock_balance(self) -> pd.DataFrame:
+        """
+        미국 주식 잔고 조회
+        return: 미국 주식 잔고 정보를 DataFrame으로 반환
+        """
+        return self._get_os_stock_balance("NASD")
+
+    def _get_os_stock_balance(self, market_code: str) -> pd.DataFrame:
+        """
+        해외 주식 잔고 조회
+        return: 해외 주식 잔고 정보를 DataFrame으로 반환
+        """
+
+        def to_dataframe(res: APIResponse) -> pd.DataFrame:
+            tdf = pd.DataFrame(res.outputs[0])
+            if tdf.empty:
+                return tdf
+
+            tdf.set_index("ovrs_pdno", inplace=True)
+            cf1 = ["ovrs_item_name", "ovrs_cblc_qty", "ord_psbl_qty", "frcr_pchs_amt1",
+                   "evlu_pfls_rt", "now_pric2", "ovrs_excg_cd", "tr_crcy_cd"]
+            cf2 = ["종목명", "보유수량", "매도가능수량", "매입단가",
+                   "수익율", "현재가", "거래소코드", "거래화폐코드"]
+            tdf = tdf[cf1]
+            tdf[cf1[1:-2]] = tdf[cf1[1:-2]].apply(pd.to_numeric)
+            ren_dict = dict(zip(cf1, cf2))
+            return tdf.rename(columns=ren_dict)
+
+        def request_function(*args, **kwargs):
+            return self._get_os_total_balance(market_code, *args, **kwargs)
+
+        return self._send_continuous_query(request_function, to_dataframe)
+
+    def _get_total_balance(self, is_kr: bool,
+                           extra_header: Json = None,
+                           extra_param: Json = None) -> APIResponse:
+        """
+        주식 잔고의 조회 전체 결과를 반환한다.
+        """
+        if is_kr:
+            url_path = "/uapi/domestic-stock/v1/trading/inquire-balance"
+            tr_id = "TTTC8434R"
+        else:
+            url_path = "/uapi/overseas-stock/v1/trading/inquire-balance"
+            tr_id = "JTTT3012R"
+
+        extra_header = none_to_empty_dict(extra_header)
+        extra_param = none_to_empty_dict(extra_param)
+
+        extra_header = merge_json([{"tr_cont": ""}, extra_header])
+        querry_code = self._continuous_querry_code(is_kr)
+
+        params = {
+            "CANO": self.account.account_code,
+            "ACNT_PRDT_CD": self.account.product_code,
+            f"CTX_AREA_FK{querry_code}": "",
+            f"CTX_AREA_NK{querry_code}": ""
+        }
+
+        params = merge_json([params, extra_param])
+        req = APIRequestParameter(url_path, tr_id, params,
+                                  extra_header=extra_header)
+        return self._send_get_request(req)
+
+    def _get_os_total_balance(self, market_code: str, extra_header: Json = None,
+                              extra_param: Json = None) -> APIResponse:
+        """
+        해외 주식 잔고의 조회 전체 결과를 반환한다.
+        """
+        currency_code = self._get_currency_code_from_market_code(market_code)
+
+        extra_param = merge_json([{
+            "OVRS_EXCG_CD": market_code,
+            "TR_CRCY_CD": currency_code,
+        }, none_to_empty_dict(extra_param)])
+
+        is_kr = False
+
+        return self._get_total_balance(is_kr, extra_header, extra_param)
+
+    def _get_kr_total_balance(self, extra_header: Json = None,
+                              extra_param: Json = None) -> APIResponse:
+        """
+        국내 주식 잔고의 조회 전체 결과를 반환한다.
+        """
+        extra_param = merge_json([{
+            "AFHR_FLPR_YN": "N",
+            "FNCG_AMT_AUTO_RDPT_YN": "N",
+            "FUND_STTL_ICLD_YN": "N",
+            "INQR_DVSN": "01",
+            "OFL_YN": "N",
+            "PRCS_DVSN": "01",
+            "UNPR_DVSN": "01",
+        }, none_to_empty_dict(extra_param)])
+
+        is_kr = True
+
+        return self._get_total_balance(is_kr, extra_header, extra_param)
+
     # 잔고 조회------------
 
     # 주문 조회------------
+
     def _get_kr_orders_once(self, extra_header: Json = None,
                             extra_param: Json = None) -> APIResponse:
         """
@@ -646,12 +745,13 @@ class Api:
         extra_param = none_to_empty_dict(extra_param)
 
         extra_header = merge_json([{"tr_cont": ""}, extra_header])
+        querry_code = self._continuous_querry_code(True)
 
         params = {
             "CANO": self.account.account_code,
             "ACNT_PRDT_CD": self.account.product_code,
-            "CTX_AREA_FK100": "",
-            "CTX_AREA_NK100": "",
+            f"CTX_AREA_FK{querry_code}": "",
+            f"CTX_AREA_NK{querry_code}": "",
             "INQR_DVSN_1": "0",
             "INQR_DVSN_2": "0"
         }
