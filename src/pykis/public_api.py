@@ -321,17 +321,11 @@ class Api:  # pylint: disable=too-many-public-methods
             if no_more_data:
                 break
 
-            querry_code = self._continuous_querry_code(is_kr)
+            querry_code = get_continuous_querry_code(is_kr)
             extra_param[f"CTX_AREA_FK{querry_code}"] = res.body[f"ctx_area_fk{querry_code}"]
             extra_param[f"CTX_AREA_NK{querry_code}"] = res.body[f"ctx_area_nk{querry_code}"]
 
         return pd.concat(outputs)
-
-    def _continuous_querry_code(self, is_kr: bool) -> str:
-        """
-        연속 querry 에 필요한 지역 관련 코드를 반환한다
-        """
-        return "100" if is_kr else "200"
 
     def get_kr_stock_balance(self) -> pd.DataFrame:
         """
@@ -421,7 +415,7 @@ class Api:  # pylint: disable=too-many-public-methods
         extra_param = none_to_empty_dict(extra_param)
 
         extra_header = merge_json([{"tr_cont": ""}, extra_header])
-        querry_code = self._continuous_querry_code(is_kr)
+        querry_code = get_continuous_querry_code(is_kr)
 
         params = {
             "CANO": self.account.account_code,
@@ -487,7 +481,7 @@ class Api:  # pylint: disable=too-many-public-methods
         extra_param = none_to_empty_dict(extra_param)
 
         extra_header = merge_json([{"tr_cont": ""}, extra_header])
-        querry_code = self._continuous_querry_code(True)
+        querry_code = get_continuous_querry_code(True)
 
         params = {
             "CANO": self.account.account_code,

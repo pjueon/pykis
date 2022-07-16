@@ -33,3 +33,10 @@ def get_currency_code_from_market_code(market_code: str) -> str:
     if market_code in ["HASE", "VNSE", "HSX", "HNX"]:
         return "VND"
     raise RuntimeError(f"invalid market code: {market_code}")
+
+
+def get_continuous_querry_code(is_kr: bool) -> str:
+    """
+    연속 querry 에 필요한 지역 관련 코드를 반환한다
+    """
+    return "100" if is_kr else "200"
