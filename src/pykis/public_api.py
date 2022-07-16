@@ -23,6 +23,7 @@ import pandas as pd
 from .request_utility import *  # pylint: disable = wildcard-import, unused-wildcard-import
 from .domain_info import DomainInfo
 from .access_token import AccessToken
+from .oversea_utility import *  # pylint: disable = wildcard-import
 
 
 class Api:  # pylint: disable=too-many-public-methods
@@ -366,25 +367,6 @@ class Api:  # pylint: disable=too-many-public-methods
         output2 = res.outputs[1]
         return int(output2[0]["dnca_tot_amt"])
 
-    def _get_currency_code_from_market_code(self, market_code: str) -> str:
-        """
-        거래소 코드를 입력 받아서 거래통화코드를 반환한다
-        """
-        market_code = market_code.upper()
-
-        if market_code in ["NASD", "NAS", "NYSE", "AMEX", "AMS"]:
-            return "USD"
-        if market_code in ["SEHK", "HKS"]:
-            return "HKD"
-        if market_code in ["SHAA", "SZAA", "SHS", "SZS"]:
-            return "CNY"
-        if market_code in ["TKSE", "TSE"]:
-            return "JPN"
-        if market_code in ["HASE", "VNSE", "HSX", "HNX"]:
-            return "VND"
-
-        raise RuntimeError(f"invalid market code: {market_code}")
-
     def get_os_stock_balance(self) -> pd.DataFrame:
         """
         해외 주식 잔고를 DataFrame으로 반환한다
@@ -458,7 +440,7 @@ class Api:  # pylint: disable=too-many-public-methods
         """
         해외 주식 잔고의 조회 전체 결과를 반환한다.
         """
-        currency_code = self._get_currency_code_from_market_code(market_code)
+        currency_code = get_currency_code_from_market_code(market_code)
 
         extra_param = merge_json([{
             "OVRS_EXCG_CD": market_code,
