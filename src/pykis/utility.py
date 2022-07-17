@@ -16,7 +16,8 @@ pykis의 각종 유틸리티들을 모아둔 모듈
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable
+from typing import Callable, Iterable, Optional, NamedTuple
+from collections import namedtuple
 import pandas as pd
 from .request_utility import Json, APIResponse
 
@@ -75,3 +76,30 @@ def send_continuous_query(request_function: Callable[[Json, Json], APIResponse],
         extra_param[f"CTX_AREA_FK{query_code}"] = res.body[f"ctx_area_fk{query_code}"]
         extra_param[f"CTX_AREA_NK{query_code}"] = res.body[f"ctx_area_nk{query_code}"]
     return pd.concat(outputs)
+
+
+def merge_json(datas: Iterable[Json]) -> Json:
+    """
+    여러개의 json 형식 데이터를 하나로 통합하여 반환한다.
+    동일한 key가 있는 경우 뒤에 있는 원소로 덮어쓴다.
+    """
+    ret = {}
+    for data in datas:
+        for key, value in data.items():
+            ret[key] = value
+    return ret
+
+
+def to_namedtuple(name: str, json_data: Json) -> NamedTuple:
+    """
+    json 형식의 데이터를 NamedTuple 타입으로 반환한다.
+    """
+    _x = namedtuple(name, json_data.keys())
+    return _x(**json_data)
+
+
+def none_to_empty_dict(data: Optional[Json]) -> Json:
+    """
+    입력 값이 None인 경우에 빈 dictionary를 반환한다.
+    """
+    return data if data is not None else {}

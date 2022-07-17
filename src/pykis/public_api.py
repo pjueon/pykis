@@ -23,7 +23,7 @@ import pandas as pd
 from .request_utility import *  # pylint: disable = wildcard-import, unused-wildcard-import
 from .domain_info import DomainInfo
 from .access_token import AccessToken
-from .utility import *  # pylint: disable = wildcard-import
+from .utility import *  # pylint: disable = wildcard-import, unused-wildcard-import
 
 
 class Api:  # pylint: disable=too-many-public-methods

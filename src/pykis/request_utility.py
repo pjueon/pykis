@@ -15,9 +15,8 @@ request 관련 유틸리티 모듈
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import NamedTuple, Optional, Dict, Iterable, Any, List
+from typing import NamedTuple, Optional, Dict, Any, List
 import json
-from collections import namedtuple
 import requests
 
 Json = Dict[str, Any]
@@ -107,26 +106,6 @@ class APIResponse:
         return header
 
 
-def merge_json(datas: Iterable[Json]) -> Json:
-    """
-    여러개의 json 형식 데이터를 하나로 통합하여 반환한다.
-    동일한 key가 있는 경우 뒤에 있는 원소로 덮어쓴다.
-    """
-    ret = {}
-    for data in datas:
-        for key, value in data.items():
-            ret[key] = value
-    return ret
-
-
-def to_namedtuple(name: str, json_data: Json) -> NamedTuple:
-    """
-    json 형식의 데이터를 NamedTuple 타입으로 반환한다.
-    """
-    _x = namedtuple(name, json_data.keys())
-    return _x(**json_data)
-
-
 def get_base_headers() -> Json:
     """
     api에 사용할 header의 기본 base를 반환한다.
@@ -165,10 +144,3 @@ def send_post_request(url: str, headers: Json, params: Json,
         api_resp.raise_if_error()
 
     return api_resp
-
-
-def none_to_empty_dict(data: Optional[Json]) -> Json:
-    """
-    입력 값이 None인 경우에 빈 dictionary를 반환한다.
-    """
-    return data if data is not None else {}
