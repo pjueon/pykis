@@ -35,7 +35,7 @@ def get_currency_code_from_market_code(market_code: str) -> str:
     raise RuntimeError(f"invalid market code: {market_code}")
 
 
-def get_continuous_querry_code(is_kr: bool) -> str:
+def get_continuous_query_code(is_kr: bool) -> str:
     """
     연속 querry 에 필요한 지역 관련 코드를 반환한다
     """

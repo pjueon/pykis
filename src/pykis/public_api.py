@@ -321,9 +321,9 @@ class Api:  # pylint: disable=too-many-public-methods
             if no_more_data:
                 break
 
-            querry_code = get_continuous_querry_code(is_kr)
-            extra_param[f"CTX_AREA_FK{querry_code}"] = res.body[f"ctx_area_fk{querry_code}"]
-            extra_param[f"CTX_AREA_NK{querry_code}"] = res.body[f"ctx_area_nk{querry_code}"]
+            query_code = get_continuous_query_code(is_kr)
+            extra_param[f"CTX_AREA_FK{query_code}"] = res.body[f"ctx_area_fk{query_code}"]
+            extra_param[f"CTX_AREA_NK{query_code}"] = res.body[f"ctx_area_nk{query_code}"]
 
         return pd.concat(outputs)
 
@@ -415,13 +415,13 @@ class Api:  # pylint: disable=too-many-public-methods
         extra_param = none_to_empty_dict(extra_param)
 
         extra_header = merge_json([{"tr_cont": ""}, extra_header])
-        querry_code = get_continuous_querry_code(is_kr)
+        query_code = get_continuous_query_code(is_kr)
 
         params = {
             "CANO": self.account.account_code,
             "ACNT_PRDT_CD": self.account.product_code,
-            f"CTX_AREA_FK{querry_code}": "",
-            f"CTX_AREA_NK{querry_code}": ""
+            f"CTX_AREA_FK{query_code}": "",
+            f"CTX_AREA_NK{query_code}": ""
         }
 
         params = merge_json([params, extra_param])
@@ -481,13 +481,13 @@ class Api:  # pylint: disable=too-many-public-methods
         extra_param = none_to_empty_dict(extra_param)
 
         extra_header = merge_json([{"tr_cont": ""}, extra_header])
-        querry_code = get_continuous_querry_code(True)
+        query_code = get_continuous_query_code(True)
 
         params = {
             "CANO": self.account.account_code,
             "ACNT_PRDT_CD": self.account.product_code,
-            f"CTX_AREA_FK{querry_code}": "",
-            f"CTX_AREA_NK{querry_code}": "",
+            f"CTX_AREA_FK{query_code}": "",
+            f"CTX_AREA_NK{query_code}": "",
             "INQR_DVSN_1": "0",
             "INQR_DVSN_2": "0"
         }
