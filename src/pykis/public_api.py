@@ -16,98 +16,14 @@ pykist 패키지의 public api 모음
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime, timedelta
-from typing import NamedTuple, Optional, Tuple, Callable
+from typing import NamedTuple, Optional, Tuple
 import time
 import pandas as pd
 
-from .request_utility import * # pylint: disable = wildcard-import, unused-wildcard-import
-
-
-class DomainInfo:
-    """
-    도메인 정보를 나타내는 클래스. (실제 투자, 모의 투자, etc)
-    """
-
-    def __init__(self, kind: Optional[str] = None, url: Optional[str] = None) -> None:
-        self.kind = kind
-        self.base_url = self._base_url(url)
-
-    def get_url(self, url_path: str):
-        """
-        url_path를 입력받아서 전체 url을 반환한다.
-        """
-        separator = "" if url_path.startswith("/") else "/"
-        return f"{self.base_url}{separator}{url_path}"
-
-    def _base_url(self, input_url: Optional[str]) -> str:
-        """
-        domain 정보를 나타내는 base url 반환한다. 잘못된 입력의 경우 예외를 던진다.
-        """
-        if self.kind == "real":
-            return "https://openapi.koreainvestment.com:9443"
-
-        if self.kind == "virtual":
-            return "https://openapivts.koreainvestment.com:29443"
-
-        if self.kind is None and input_url is not None:
-            return input_url
-
-        raise RuntimeError("invalid domain info")
-
-    def is_real(self) -> bool:
-        """
-        실제 투자용 도메인 정보인지 여부를 반환한다.
-        """
-        return self.kind == "real"
-
-    def is_virtual(self) -> bool:
-        """
-        모의 투자용 도메인 정보인지 여부를 반환한다.
-        """
-        return self.kind == "virtual"
-
-    def adjust_tr_id(self, tr_id: Optional[str]) -> str:
-        """
-        모의 투자인 경우, tr_id를 필요에 따라 변경한다.
-        """
-        if tr_id is not None and self.is_virtual():
-            if len(tr_id) >= 1 and tr_id[0] in ["T", "J", "C"]:
-                return "V" + tr_id[1:]
-        return tr_id
-
-
-class AccessToken:
-    """
-    인증용 토큰 정보를 담을 클래스
-    """
-
-    def __init__(self) -> None:
-        self.value: Optional[str] = None
-        self.valid_until: Optional[datetime] = None
-
-    def create(self, resp: NamedTuple) -> None:
-        """
-        Token을 생성한다.
-        """
-        self.value: str = f"Bearer {str(resp.access_token)}"
-        self.valid_until: datetime = self._valid_until(resp)
-
-    def _valid_until(self, resp: NamedTuple) -> datetime:
-        """
-        현재 시각 기준으로 Token의 유효기한을 반환한다.
-        """
-        time_margin = 60
-        duration = int(resp.expires_in) - time_margin
-        return datetime.now() + timedelta(seconds=duration)
-
-    def is_valid(self) -> bool:
-        """
-        Token이 유효한지 검사한다.
-        """
-        return self.value is not None and \
-            self.valid_until is not None and \
-            datetime.now() < self.valid_until
+from .request_utility import *  # pylint: disable = wildcard-import, unused-wildcard-import
+from .domain_info import DomainInfo
+from .access_token import AccessToken
+from .utility import *  # pylint: disable = wildcard-import, unused-wildcard-import
 
 
 class Api:  # pylint: disable=too-many-public-methods
@@ -374,49 +290,6 @@ class Api:  # pylint: disable=too-many-public-methods
         output = res.outputs[0]
         return int(output["ord_psbl_cash"])
 
-    def _send_continuous_query(self, request_function: Callable[[Json, Json], APIResponse],
-                               to_dataframe:
-                               Callable[[APIResponse], pd.DataFrame],
-                               is_kr: bool = True) -> pd.DataFrame:
-        """
-        조회 결과가 100건 이상 존재하는 경우 연속하여 query 후 전체 결과를 DataFrame으로 통합하여 반환한다.
-        """
-        max_count = 100
-        outputs = []
-
-        # 초기값
-        extra_header = {}
-        extra_param = {}
-
-        for i in range(max_count):
-            if i > 0:
-                extra_header = {"tr_cont": "N"}    # 공백 : 초기 조회, N : 다음 데이터 조회
-
-            res = request_function(
-                extra_header=extra_header,
-                extra_param=extra_param
-            )
-            output = to_dataframe(res)
-            outputs.append(output)
-
-            response_tr_cont = res.header["tr_cont"]
-            no_more_data = response_tr_cont not in ["F", "M"]
-
-            if no_more_data:
-                break
-
-            querry_code = self._continuous_querry_code(is_kr)
-            extra_param[f"CTX_AREA_FK{querry_code}"] = res.body[f"ctx_area_fk{querry_code}"]
-            extra_param[f"CTX_AREA_NK{querry_code}"] = res.body[f"ctx_area_nk{querry_code}"]
-
-        return pd.concat(outputs)
-
-    def _continuous_querry_code(self, is_kr: bool) -> str:
-        """
-        연속 querry 에 필요한 지역 관련 코드를 반환한다
-        """
-        return "100" if is_kr else "200"
-
     def get_kr_stock_balance(self) -> pd.DataFrame:
         """
         국내 주식 잔고 조회
@@ -440,7 +313,7 @@ class Api:  # pylint: disable=too-many-public-methods
         def request_function(*args, **kwargs):
             return self._get_kr_total_balance(*args, **kwargs)
 
-        return self._send_continuous_query(request_function, to_dataframe)
+        return send_continuous_query(request_function, to_dataframe)
 
     def get_kr_deposit(self) -> int:
         """
@@ -450,25 +323,6 @@ class Api:  # pylint: disable=too-many-public-methods
 
         output2 = res.outputs[1]
         return int(output2[0]["dnca_tot_amt"])
-
-    def _get_currency_code_from_market_code(self, market_code: str) -> str:
-        """
-        거래소 코드를 입력 받아서 거래통화코드를 반환한다
-        """
-        market_code = market_code.upper()
-
-        if market_code in ["NASD", "NAS", "NYSE", "AMEX", "AMS"]:
-            return "USD"
-        if market_code in ["SEHK", "HKS"]:
-            return "HKD"
-        if market_code in ["SHAA", "SZAA", "SHS", "SZS"]:
-            return "CNY"
-        if market_code in ["TKSE", "TSE"]:
-            return "JPN"
-        if market_code in ["HASE", "VNSE", "HSX", "HNX"]:
-            return "VND"
-
-        raise RuntimeError(f"invalid market code: {market_code}")
 
     def get_os_stock_balance(self) -> pd.DataFrame:
         """
@@ -505,7 +359,7 @@ class Api:  # pylint: disable=too-many-public-methods
         def request_function(*args, **kwargs):
             return self._get_os_total_balance(market_code, *args, **kwargs)
 
-        return self._send_continuous_query(request_function, to_dataframe)
+        return send_continuous_query(request_function, to_dataframe)
 
     def _get_total_balance(self, is_kr: bool,
                            extra_header: Json = None,
@@ -524,13 +378,13 @@ class Api:  # pylint: disable=too-many-public-methods
         extra_param = none_to_empty_dict(extra_param)
 
         extra_header = merge_json([{"tr_cont": ""}, extra_header])
-        querry_code = self._continuous_querry_code(is_kr)
+        query_code = get_continuous_query_code(is_kr)
 
         params = {
             "CANO": self.account.account_code,
             "ACNT_PRDT_CD": self.account.product_code,
-            f"CTX_AREA_FK{querry_code}": "",
-            f"CTX_AREA_NK{querry_code}": ""
+            f"CTX_AREA_FK{query_code}": "",
+            f"CTX_AREA_NK{query_code}": ""
         }
 
         params = merge_json([params, extra_param])
@@ -543,7 +397,7 @@ class Api:  # pylint: disable=too-many-public-methods
         """
         해외 주식 잔고의 조회 전체 결과를 반환한다.
         """
-        currency_code = self._get_currency_code_from_market_code(market_code)
+        currency_code = get_currency_code_from_market_code(market_code)
 
         extra_param = merge_json([{
             "OVRS_EXCG_CD": market_code,
@@ -590,13 +444,13 @@ class Api:  # pylint: disable=too-many-public-methods
         extra_param = none_to_empty_dict(extra_param)
 
         extra_header = merge_json([{"tr_cont": ""}, extra_header])
-        querry_code = self._continuous_querry_code(True)
+        query_code = get_continuous_query_code(True)
 
         params = {
             "CANO": self.account.account_code,
             "ACNT_PRDT_CD": self.account.product_code,
-            f"CTX_AREA_FK{querry_code}": "",
-            f"CTX_AREA_NK{querry_code}": "",
+            f"CTX_AREA_FK{query_code}": "",
+            f"CTX_AREA_NK{query_code}": "",
             "INQR_DVSN_1": "0",
             "INQR_DVSN_2": "0"
         }
@@ -636,7 +490,7 @@ class Api:  # pylint: disable=too-many-public-methods
 
             return data
 
-        return self._send_continuous_query(self._get_kr_orders_once, to_dataframe)
+        return send_continuous_query(self._get_kr_orders_once, to_dataframe)
 
     # 주문 조회------------
 
