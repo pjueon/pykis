@@ -495,8 +495,39 @@ class Api:  # pylint: disable=too-many-public-methods
     # 주문 조회------------
 
     # 매매-----------------
+    def _send_os_order(self, market_code: str, ticker: str,  # pylint: disable=too-many-arguments
+                       order_amount: int, price: float, buy: bool) -> Json:
+        """
+        해외 주식 매매
+        """
+        order_type = "00"  # 00: 지정가, 01: 시장가, ...
+        price_as_str = f"{price:.2f}"
 
-    def _send_kr_stock_order(self, ticker: str, order_amount: int, price: int, buy: bool) -> Json:
+        if price <= 0:
+            price_as_str = "0"
+            order_type = "01"   # 시장가
+
+        url_path = "/uapi/overseas-stock/v1/trading/order"
+
+        tr_id = get_order_tr_id_from_market_code(market_code, buy)
+
+        params = {
+            "CANO": self.account.account_code,
+            "ACNT_PRDT_CD": self.account.product_code,
+            "PDNO": ticker,
+            "OVRS_EXCG_CD": market_code,
+            "ORD_DVSN": order_type,
+            "ORD_QTY": str(order_amount),
+            "ORD_UNPR": price_as_str,
+        }
+
+        req = APIRequestParameter(url_path, tr_id=tr_id,
+                                  params=params, requires_authentication=True, requires_hash=False)
+
+        response = self._send_post_request(req)
+        return response.outputs[0]
+
+    def _send_kr_order(self, ticker: str, order_amount: int, price: int, buy: bool) -> Json:
         """
         국내 주식 매매(현금)
         """
@@ -521,7 +552,7 @@ class Api:  # pylint: disable=too-many-public-methods
             "ORD_UNPR": str(price),
             "CTAC_TLNO": "",
             # "SLL_TYPE": "01",
-            "ALGO_NO": ""
+            # "ALGO_NO": ""
         }
 
         req = APIRequestParameter(url_path, tr_id=tr_id,
@@ -537,7 +568,7 @@ class Api:  # pylint: disable=too-many-public-methods
         order_amount: 주문 수량
         price: 주문 가격
         """
-        return self._send_kr_stock_order(ticker, order_amount, price, True)
+        return self._send_kr_order(ticker, order_amount, price, True)
 
     def sell_kr_stock(self, ticker: str, order_amount: int, price: int) -> Json:
         """
@@ -546,7 +577,7 @@ class Api:  # pylint: disable=too-many-public-methods
         order_amount: 주문 수량
         price: 주문 가격
         """
-        return self._send_kr_stock_order(ticker, order_amount, price, False)
+        return self._send_kr_order(ticker, order_amount, price, False)
 
     # 매매-----------------
 
