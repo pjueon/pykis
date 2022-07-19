@@ -24,6 +24,7 @@ from .request_utility import *  # pylint: disable = wildcard-import, unused-wild
 from .domain_info import DomainInfo
 from .access_token import AccessToken
 from .utility import *  # pylint: disable = wildcard-import, unused-wildcard-import
+from .market_code_map import MarketCodeMap
 
 
 class Api:  # pylint: disable=too-many-public-methods
@@ -45,6 +46,7 @@ class Api:  # pylint: disable=too-many-public-methods
         self.account: Optional[NamedTuple] = None
 
         self.set_account(account_info)
+        self.market_code_map = MarketCodeMap()
 
     def set_account(self, account_info: Optional[Json]) -> None:
         """
@@ -495,13 +497,66 @@ class Api:  # pylint: disable=too-many-public-methods
     # 주문 조회------------
 
     # 매매-----------------
-    def _send_os_order(self, market_code: str, ticker: str,  # pylint: disable=too-many-arguments
+    def _send_kr_order(self, ticker: str, amount: int, price: int, buy: bool) -> Json:
+        """
+        국내 주식 매매(현금)
+        """
+        order_type = "00"  # 00: 지정가, 01: 시장가, ...
+        if price <= 0:
+            price = 0
+            order_type = "01"   # 시장가
+
+        url_path = "/uapi/domestic-stock/v1/trading/order-cash"
+
+        if buy:
+            tr_id = "TTTC0802U"  # buy
+        else:
+            tr_id = "TTTC0801U"  # sell
+
+        params = {
+            "CANO": self.account.account_code,
+            "ACNT_PRDT_CD": self.account.product_code,
+            "PDNO": ticker,
+            "ORD_DVSN": order_type,
+            "ORD_QTY": str(amount),
+            "ORD_UNPR": str(price),
+            "CTAC_TLNO": "",
+            # "SLL_TYPE": "01",
+            # "ALGO_NO": ""
+        }
+
+        req = APIRequestParameter(url_path, tr_id=tr_id,
+                                  params=params, requires_authentication=True, requires_hash=True)
+
+        response = self._send_post_request(req)
+        return response.outputs[0]
+
+    def buy_kr_stock(self, ticker: str, amount: int, price: int) -> Json:
+        """
+        국내 주식 매수(현금)
+        ticker: 종목코드
+        amount: 주문 수량
+        price: 주문 가격
+        """
+        return self._send_kr_order(ticker, amount, price, True)
+
+    def sell_kr_stock(self, ticker: str, amount: int, price: int) -> Json:
+        """
+        국내 주식 매매(현금)
+        ticker: 종목코드
+        amount: 주문 수량
+        price: 주문 가격
+        """
+        return self._send_kr_order(ticker, amount, price, False)
+
+    def _send_os_order(self, ticker: str, market_code: str,  # pylint: disable=too-many-arguments
                        order_amount: int, price: float, buy: bool) -> Json:
         """
         해외 주식 매매
         """
         order_type = "00"  # 00: 지정가, 01: 시장가, ...
         price_as_str = f"{price:.2f}"
+        market_code = self.market_code_map.to_4(market_code)
 
         if price <= 0:
             price_as_str = "0"
@@ -527,57 +582,27 @@ class Api:  # pylint: disable=too-many-public-methods
         response = self._send_post_request(req)
         return response.outputs[0]
 
-    def _send_kr_order(self, ticker: str, order_amount: int, price: int, buy: bool) -> Json:
+    def buy_os_stock(self, market_code: str, ticker: str,
+                     amount: int, price: float):
         """
-        국내 주식 매매(현금)
+        해외 주식 매수 주문
+        ticker: 종목 코드
+        market_code: 거래소 코드
+        amount: 주문 수량
+        price: 매매 가격 (1주당 가격, 해당 화폐)
         """
-        order_type = "00"  # 00: 지정가, 01: 시장가, ...
-        if price <= 0:
-            price = 0
-            order_type = "01"   # 시장가
+        return self._send_os_order(ticker, market_code, amount, price, True)
 
-        url_path = "/uapi/domestic-stock/v1/trading/order-cash"
-
-        if buy:
-            tr_id = "TTTC0802U"  # buy
-        else:
-            tr_id = "TTTC0801U"  # sell
-
-        params = {
-            "CANO": self.account.account_code,
-            "ACNT_PRDT_CD": self.account.product_code,
-            "PDNO": ticker,
-            "ORD_DVSN": order_type,
-            "ORD_QTY": str(order_amount),
-            "ORD_UNPR": str(price),
-            "CTAC_TLNO": "",
-            # "SLL_TYPE": "01",
-            # "ALGO_NO": ""
-        }
-
-        req = APIRequestParameter(url_path, tr_id=tr_id,
-                                  params=params, requires_authentication=True, requires_hash=True)
-
-        response = self._send_post_request(req)
-        return response.outputs[0]
-
-    def buy_kr_stock(self, ticker: str, order_amount: int, price: int) -> Json:
+    def sell_os_stock(self, market_code: str, ticker: str,
+                      amount: int, price: float):
         """
-        국내 주식 매수(현금)
-        ticker: 종목코드
-        order_amount: 주문 수량
-        price: 주문 가격
+        해외 주식 매수 주문
+        ticker: 종목 코드
+        market_code: 거래소 코드
+        amount: 주문 수량
+        price: 매매 가격 (1주당 가격, 해당 화폐)
         """
-        return self._send_kr_order(ticker, order_amount, price, True)
-
-    def sell_kr_stock(self, ticker: str, order_amount: int, price: int) -> Json:
-        """
-        국내 주식 매매(현금)
-        ticker: 종목코드
-        order_amount: 주문 수량
-        price: 주문 가격
-        """
-        return self._send_kr_order(ticker, order_amount, price, False)
+        return self._send_os_order(ticker, market_code, amount, price, False)
 
     # 매매-----------------
 
