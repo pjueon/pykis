@@ -86,21 +86,22 @@ account_info = {    # 사용할 계좌 정보
 
 api.set_account(account_info)
 ```
+### 국내 주식 관련
 
-### 거래 가능 현금 조회
+#### 거래 가능 현금 조회
 ```python
 cash = api.get_kr_buyable_cash()
 print(f"거래 가능 현금: {cash} 원")
 ```
 
-### 국내 주식 현재가 조회
+#### 국내 주식 현재가 조회
 ```python
 ticker = "005930"   # 삼성전자 종목코드
 price = api.get_kr_current_price(ticker)
 print(f"삼성전자 현재가: {price} 원")
 ```
 
-### 국내 주식 최근 가격 조회 (일/주/월 OHLCV)
+#### 국내 주식 최근 가격 조회 (일/주/월 OHLCV)
 ```python
 # 최근 30 일/주/월 OHLCV 데이터를 DataFrame으로 반환
 ticker = "005930"   # 삼성전자 종목코드
@@ -108,77 +109,71 @@ time_unit = "D"     # 기간 분류 코드 (D/day-일, W/week-주, M/month-월),
 ohlcv = api.get_kr_ohlcv(ticker, time_unit)
 ```
 
-### 국내 주식 하한가 조회
+#### 국내 주식 하한가 조회
 ```python
 ticker = "005930"   # 삼성전자 종목코드
 price = api.get_kr_min_price(ticker)
 print(f"삼성전자 하한가: {price} 원")
 ```
 
-### 국내 주식 상한가 조회
+#### 국내 주식 상한가 조회
 ```python
 ticker = "005930"   # 삼성전자 종목코드
 price = api.get_kr_max_price(ticker)
 print(f"삼성전자 상한가: {price} 원")
 ```
 
-### 국내 주식 잔고 조회 
+#### 국내 주식 잔고 조회 
 ```python
 # DataFrame 형태로 국내 주식 잔고 반환 
 stock = api.get_kr_stock_balance()
 print(f"보유중인 국내 주식: \n{stock}")
 ```
 
-### 국내 주식 총 예수금 조회 
+#### 국내 주식 총 예수금 조회 
 ```python
 deposit = api.get_kr_deposit()
 print(f"총 예수금: {deposit} 원")
 ```
 
-### 국내 주식 매수 주문
+#### 국내 주식 매수 주문
 ```python
 ticker = "005930"   # 삼성전자 종목코드
 price = 100000      # 매수 가격 예시. 가격이 0 이하인 경우 시장가로 매수
 
 # 종목코드 ticker인 국내 주식 1주 매수 주문 
-ret = api.buy_kr_stock(ticker, 1, price=price)
-
-# 반환값: 서버 응답 (주문 번호 등의 정보)
-print(ret)
+api.buy_kr_stock(ticker, 1, price=price)
 ```
 
-### 국내 주식 매도 주문 
+#### 국내 주식 매도 주문 
 ```python
 ticker = "005930"   # 삼성전자 종목코드
 price = 100000      # 매도 가격 예시. 가격이 0 이하인 경우 시장가로 매도
 
 # 종목코드 ticker인 국내 주식 1주를 지정가로 매도 주문 
-ret = api.sell_kr_stock(ticker, 1, price=price)
-
-# 반환값: 서버 응답 (주문 번호 등의 정보)
-print(ret)
+api.sell_kr_stock(ticker, 1, price=price)
 ```
 
-### 정정/취소 가능한 국내 주식 주문 조회
+#### 정정/취소 가능한 국내 주식 주문 조회
 ```python
 # 정정/취소 가능한 국내 주식 주문을 DataFrame으로 반환
 orders = api.get_kr_orders()
 print(orders)
 ```
 
-### 미체결 국내 주식 주문 취소
+#### 미체결 국내 주식 주문 취소
 ```python
 # order_number: 주문 번호. api.get_kr_orders 통해 확인 가능.
 # amount: 취소할 주문 수량. 지정하지 않은 경우 잔량 전부 취소.
 api.cancel_kr_order(order_number, amount)
 ```
 
-### 모든 미체결 국내 주식 주문 취소
+#### 모든 미체결 국내 주식 주문 취소
 ```python
 api.cancel_all_kr_orders()
 ```
 
-### 국내 주식 주문 정정
+#### 국내 주식 주문 정정
 ```python
 # order_number: 주문 번호. api.get_kr_orders 통해 확인 가능.
 # price: 정정할 1주당 가격.
@@ -186,11 +181,15 @@ api.cancel_all_kr_orders()
 api.revise_kr_order(order_number, price, amount)
 ```
 
-### 해외 주식 현재가 조회
+### 해외 주식 관련
+
+#### 거래소 코드
 |           |홍콩|뉴욕|나스닥|아멕스|도쿄|상해|심천|호치민|하노이|
 |-----------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 |거래소 코드|HKS|NYS|NAS|AMS|TSE|SHS|SZS|HSX|HNX|
 
+
+#### 해외 주식 현재가 조회
 
 ```python
 # ticker: 종목코드
@@ -202,11 +201,29 @@ price = api.get_os_current_price(ticker, market_code)
 print(price)
 ```
 
-### 해외 주식 잔고 조회
+#### 해외 주식 잔고 조회
 ```python
 # DataFrame 형태로 국내 주식 잔고 반환 
 stock = api.get_os_stock_balance()
 print(f"보유중인 해외 주식: \n{stock}")
+```
+
+#### 해외 주식 매수 주문
+```python
+ticker = "TSLA"			# 테슬라 종목코드
+market_code: "NAS"		# 나스닥 거래소 코드
+
+# 종목코드 ticker인 해외 주식 1주 매수 주문 
+api.buy_kr_stock(ticker, market_code, 1, price=price)
+```
+
+#### 해외 주식 매도 주문
+```python
+ticker = "TSLA"			# 테슬라 종목코드
+market_code: "NAS"		# 나스닥 거래소 코드
+
+# 종목코드 ticker인 해외 주식 1주 매도 주문 
+api.sell_kr_stock(ticker, market_code, 1, price=price)
 ```
 
 
