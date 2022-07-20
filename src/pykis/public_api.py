@@ -431,8 +431,8 @@ class Api:  # pylint: disable=too-many-public-methods
 
     # 주문 조회------------
 
-    def _get_kr_orders_once(self, extra_header: Json = None,
-                            extra_param: Json = None) -> APIResponse:
+    def _get_kr_orders_once(self, extra_header: Optional[Json] = None,
+                            extra_param: Optional[Json] = None) -> APIResponse:
         """
         취소/정정 가능한 국내 주식 주문 목록을 반환한다.
         한번만 실행.
