@@ -38,6 +38,9 @@ class MarketCodeMap:
             value: key for key, value in self.map_3_to_4.items()
         }
 
+        self.codes_3 = list(self.map_3_to_4.keys())
+        self.codes_4 = list(self.map_3_to_4.values())
+
     def _convert(self, market_code: str, is_3_to4: bool) -> str:
         """
         거래소 코드 변환용 내부 함수
