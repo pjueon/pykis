@@ -464,6 +464,38 @@ class Api:  # pylint: disable=too-many-public-methods
 
         return res
 
+    def _get_os_orders_once(self, markert_code: str, extra_header: Json = None,
+                            extra_param: Json = None) -> APIResponse:
+        """
+        취소/정정 가능한 해외 주식 주문 목록을 반환한다.
+        한번만 실행.
+        """
+        url_path = "/uapi/overseas-stock/v1/trading/inquire-nccs"
+        tr_id = "JTTT3018R"
+
+        extra_header = none_to_empty_dict(extra_header)
+        extra_param = none_to_empty_dict(extra_param)
+        markert_code = self.market_code_map.to_4(markert_code)
+
+        extra_header = merge_json([{"tr_cont": ""}, extra_header])
+        query_code = get_continuous_query_code(False)
+
+        params = {
+            "CANO": self.account.account_code,
+            "ACNT_PRDT_CD": self.account.product_code,
+            f"CTX_AREA_FK{query_code}": "",
+            f"CTX_AREA_NK{query_code}": "",
+            "OVRS_EXCG_CD": markert_code,
+            "SORT_SQN": "DS",
+        }
+
+        params = merge_json([params, extra_param])
+        req = APIRequestParameter(url_path, tr_id, params,
+                                  extra_header=extra_header)
+        res = self._send_get_request(req)
+
+        return res
+
     def get_kr_orders(self) -> pd.DataFrame:
         """
         취소/정정 가능한 국내 주식 주문 목록을 DataFrame으로 반환한다.
@@ -493,6 +525,64 @@ class Api:  # pylint: disable=too-many-public-methods
             return data
 
         return send_continuous_query(self._get_kr_orders_once, to_dataframe)
+
+    def get_os_orders(self) -> pd.DataFrame:
+        """
+        미체결 해외 주식 주문 목록을 DataFrame으로 반환한다.
+        """
+        def sell_or_buy(value):  # 01: 매도, 02: 매수
+            return "매도" if value == "01" else "매수"
+
+        def to_dataframe(res: APIResponse) -> pd.DataFrame:
+            data = pd.DataFrame(res.outputs[0])
+            if data.empty:
+                return data
+
+            sell_or_buy_column = "sll_buy_dvsn_cd"
+            market_code_column = "ovrs_excg_cd"
+
+            data.set_index("odno", inplace=True)
+
+            rename_map = {
+                "pdno": "종목코드",
+                "ft_ord_qty": "주문수량",
+                "ft_ccld_qty": "체결수량",
+                "nccs_qty": "미체결수량",
+                "ft_ord_unpr3": "주문가격",
+                sell_or_buy_column: "매수매도구분",
+                "ord_tmd": "시간",
+                "ord_gno_brno": "주문점",
+                "orgn_odno": "원번호",
+                market_code_column: "해외거래소코드",
+                "tr_crcy_cd": "거래통화코드",
+                "prcs_stat_name": "처리상태명",
+            }
+
+            data = data[rename_map.keys()]
+
+            data[sell_or_buy_column] = data[sell_or_buy_column].apply(
+                sell_or_buy)
+
+            data[market_code_column] = data[market_code_column].apply(
+                self.market_code_map.to_3
+            )
+
+            data = data.rename(columns=rename_map)
+
+            return data
+
+        def request_function_factory(code: str):
+            def request_function(*args, **kwargs):
+                return self._get_os_orders_once(code, *args, **kwargs)
+
+            return request_function
+
+        outputs = [
+            send_continuous_query(request_function_factory(code), to_dataframe)
+            for code in self.market_code_map.codes_4
+        ]
+
+        return pd.concat(outputs)
 
     # 주문 조회------------
 
@@ -586,7 +676,7 @@ class Api:  # pylint: disable=too-many-public-methods
     def buy_os_stock(self, market_code: str, ticker: str,
                      amount: int, price: float):
         """
-        해외 주식 매수 주문
+        해외 주식 매수 주문)
         ticker: 종목 코드
         market_code: 거래소 코드
         amount: 주문 수량
