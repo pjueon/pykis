@@ -573,11 +573,12 @@ class Api:  # pylint: disable=too-many-public-methods
             "OVRS_EXCG_CD": market_code,
             "ORD_DVSN": order_type,
             "ORD_QTY": str(order_amount),
-            "ORD_UNPR": price_as_str,
+            "OVRS_ORD_UNPR": price_as_str,
+            "ORD_SVR_DVSN_CD": "0",
         }
 
         req = APIRequestParameter(url_path, tr_id=tr_id,
-                                  params=params, requires_authentication=True, requires_hash=False)
+                                  params=params, requires_authentication=True, requires_hash=True)
 
         response = self._send_post_request(req)
         return response.outputs[0]
