@@ -581,7 +581,7 @@ class Api:  # pylint: disable=too-many-public-methods
 
         outputs = [
             send_continuous_query(request_function_factory(code), to_dataframe)
-            for code in self.market_code_map.codes_4
+            for code in self.market_code_map.codes_4 if code not in ["AMEX", "NYSE"]
         ]
 
         return pd.concat(outputs)
