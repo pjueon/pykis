@@ -556,6 +556,8 @@ class Api:  # pylint: disable=too-many-public-methods
                 market_code_column: "해외거래소코드",
                 "tr_crcy_cd": "거래통화코드",
                 "prcs_stat_name": "처리상태명",
+                "rjct_rson_name": "거부사유명",
+                "rjct_rson": "거부사유",
             }
 
             data = data[rename_map.keys()]
