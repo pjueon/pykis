@@ -27,6 +27,7 @@ class MarketCodeMap:
         self.map_3_to_4 = {
             "NAS": "NASD",
             "AMS": "AMEX",
+            "NYSE": "NYS",
             "TSE": "TKSE",
             "SHS": "SHAA",
             "SZS": "SZAA",
