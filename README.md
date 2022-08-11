@@ -135,7 +135,7 @@ ticker = "005930"   # 삼성전자 종목코드
 price = 100000      # 매수 가격 예시. 가격이 0 이하인 경우 시장가로 매수
 amount = 1          # 주문 수량
 
-# 종목코드 ticker인 국내 주식 1주 매수 주문 
+# 삼성전자 1주를 지정가로 매수 주문 
 api.buy_kr_stock(ticker, amount, price=price)
 ```
 
@@ -145,7 +145,7 @@ ticker = "005930"   # 삼성전자 종목코드
 price = 100000      # 매도 가격 예시. 가격이 0 이하인 경우 시장가로 매도
 amount = 1          # 주문 수량
 
-# 종목코드 ticker인 국내 주식 1주를 지정가로 매도 주문 
+# 삼성전자 1주를 지정가로 매도 주문 
 api.sell_kr_stock(ticker, amount, price=price)
 ```
 
