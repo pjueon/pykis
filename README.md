@@ -192,7 +192,7 @@ price = api.get_os_current_price(ticker, market_code)
 
 ### 해외 주식 잔고 조회
 ```python
-# DataFrame 형태로 국내 주식 잔고 반환 
+# DataFrame 형태로 해외 주식 잔고 반환 
 stocks_os = api.get_os_stock_balance()
 ```
 
