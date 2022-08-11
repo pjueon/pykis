@@ -206,7 +206,7 @@ stocks_os = api.get_os_stock_balance()
 ticker = "TSLA"			# 테슬라 종목코드
 market_code: "NAS"		# 나스닥 거래소 코드
 
-# 종목코드 ticker인 해외 주식 1주 매수 주문 
+# 테슬라 1주 매수 주문 
 api.buy_kr_stock(ticker, market_code, 1, price=price)
 ```
 
@@ -215,7 +215,7 @@ api.buy_kr_stock(ticker, market_code, 1, price=price)
 ticker = "TSLA"			# 테슬라 종목코드
 market_code: "NAS"		# 나스닥 거래소 코드
 
-# 종목코드 ticker인 해외 주식 1주 매도 주문 
+# 테슬라 1주 매도 주문 
 api.sell_kr_stock(ticker, market_code, 1, price=price)
 ```
 
