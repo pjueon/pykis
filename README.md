@@ -219,6 +219,12 @@ market_code: "NAS"		# 나스닥 거래소 코드
 api.sell_kr_stock(ticker, market_code, 1, price=price)
 ```
 
+#### 미체결 해외 주식 주문 조회
+```python
+# 모든 미체결 해외 주식 주문들을 DataFrame으로 반환
+orders = api.get_os_orders()
+```
+
 
 ## 관련 참고 자료
 - [한국투자증권 KIS Developers](https://apiportal.koreainvestment.com)
