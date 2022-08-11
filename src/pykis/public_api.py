@@ -228,7 +228,7 @@ class Api:  # pylint: disable=too-many-public-methods
         """
         해외 주식 현재가 시세 정보를 반환한다.
         ticker: 종목코드
-        market_code: 거래소 코드 (NYS-뉴욕, NAS-나스닥, AMX-아멕스, etc)
+        market_code: 거래소 코드 (NYS-뉴욕, NAS-나스닥, AMS-아멕스, etc)
         return: 해당 종목 현재 시세 정보
         """
         url_path = "/uapi/overseas-price/v1/quotations/price"
@@ -251,7 +251,7 @@ class Api:  # pylint: disable=too-many-public-methods
         """
         해외 주식 현재가를 반환한다.
         ticker: 종목코드
-        market_code: 거래소 코드 (NYS-뉴욕, NAS-나스닥, AMX-아멕스, etc)
+        market_code: 거래소 코드 (NYS-뉴욕, NAS-나스닥, AMS-아멕스, etc)
         return: 해당 종목 현재가 (단위: 해당 화폐)
         """
         info = self._get_os_stock_current_price_info(ticker, market_code)
@@ -433,8 +433,8 @@ class Api:  # pylint: disable=too-many-public-methods
 
     # 주문 조회------------
 
-    def _get_kr_orders_once(self, extra_header: Json = None,
-                            extra_param: Json = None) -> APIResponse:
+    def _get_kr_orders_once(self, extra_header: Optional[Json] = None,
+                            extra_param: Optional[Json] = None) -> APIResponse:
         """
         취소/정정 가능한 국내 주식 주문 목록을 반환한다.
         한번만 실행.

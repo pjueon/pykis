@@ -62,7 +62,7 @@ class DomainInfo:
         """
         return self.kind == "virtual"
 
-    def adjust_tr_id(self, tr_id: Optional[str]) -> str:
+    def adjust_tr_id(self, tr_id: Optional[str]) -> Optional[str]:
         """
         모의 투자인 경우, tr_id를 필요에 따라 변경한다.
         """
