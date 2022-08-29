@@ -123,7 +123,7 @@ def send_get_request(url: str, headers: Json, params: Json, raise_flag: bool = T
     """
     HTTP GET method로 request를 보내고 APIResponse 객체를 반환한다.
     """
-    resp = requests.get(url, headers=headers, params=params)
+    resp = requests.get(url, headers=headers, params=params, timeout=30)
     api_resp = APIResponse(resp)
 
     if raise_flag:
@@ -137,7 +137,8 @@ def send_post_request(url: str, headers: Json, params: Json,
     """
     HTTP POST method로 request를 보내고 APIResponse 객체를 반환한다.
     """
-    resp = requests.post(url, headers=headers, data=json.dumps(params))
+    resp = requests.post(url, headers=headers,
+                         data=json.dumps(params), timeout=30)
     api_resp = APIResponse(resp)
 
     if raise_flag:
