@@ -651,8 +651,7 @@ class Api:  # pylint: disable=too-many-public-methods
         market_code = self.market_code_map.to_4(market_code)
 
         if price <= 0:
-            price_as_str = "0"
-            order_type = "01"   # 시장가
+            raise RuntimeError("[Error] 해외 주식 매매에서는 시장가를 지원하지 않습니다")
 
         url_path = "/uapi/overseas-stock/v1/trading/order"
 
