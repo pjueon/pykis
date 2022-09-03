@@ -9,7 +9,7 @@
 
 
 ## 사용전 유의사항 
-### license 관련
+### License 관련
 pykis는 Apache-2.0 license를 따릅니다. 
 - Apache-2.0 license에서 규정하는 조건 안에서 자유롭게 수정/재배포/사용이 가능합니다. 자세한 사항은 [LICENSE](https://github.com/pjueon/pykis/blob/main/LICENSE)를 참고 바랍니다.
 - pykis의 동작에는 불완전한 부분이나 버그가 있을 수 있습니다. 또한 pykis의 API는 언제든 변경될 수 있습니다.
